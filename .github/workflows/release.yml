@@ -1,0 +1,55 @@
+# Build preprocessed ICD10CM and publish as a GitHub Release asset.
+# Run on schedule, manual trigger, or push to main (optional).
+# Requires repository secret: BIOPORTAL_API_KEY
+
+name: Build and release
+
+on:
+  workflow_dispatch: # for manual testing
+  schedule:
+    # Run weekly (Monday 00:00 UTC)
+    - cron: "0 0 * * 1"
+  push: # for automatic testing
+    branches: [main]
+    paths:
+      - "Makefile"
+      - "config/**" # to be fleshed out later
+      - "scripts/**"
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4 
+
+      - name: Build icd10cm.owl
+        env:
+          BIOPORTAL_API_KEY: ${{ secrets.BIOPORTAL_API_KEY }}
+        run: |
+          if [ -z "$BIOPORTAL_API_KEY" ]; then
+            echo "BIOPORTAL_API_KEY secret is not set; skipping build."
+            exit 0
+          fi
+          docker run --rm \
+            -e BIOPORTAL_API_KEY \
+            -v "$PWD:/work" \
+            -w /work \
+            ghcr.io/obolibrary/odkfull:v1.5.3 \
+            bash -c "pip3 install -r requirements.txt && make build"
+
+      - name: Set release tag
+        id: version
+        run: echo "tag=v$(date +%Y%m%d)-${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+      - name: Create Release and upload asset
+        if: success() && hashFiles('icd10cm.owl') != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          files: icd10cm.owl
+          generate_release_notes: true
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
