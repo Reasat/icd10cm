@@ -1,0 +1,23 @@
+# Build outputs and intermediates
+icd10cm.owl
+.icd10cm.tmp.owl
+.icd10cm.no-imports.owl
+.icd10cm.no-props.owl
+.icd10cm.annotated.owl
+.bioportal.env
+.env
+.cursor/
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+# Test outputs
+tests/output/
+!tests/output/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
