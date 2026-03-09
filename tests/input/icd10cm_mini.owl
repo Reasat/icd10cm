@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns="http://purl.bioontology.org/ontology/ICD10CM/"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:skos="http://www.w3.org/2004/02/skos/core#">
+  <owl:Ontology rdf:about="https://github.com/monarch-initiative/icd10cm/releases/latest/download/icd10cm.owl">
+    <owl:versionIRI rdf:resource="https://data.bioontology.org/ontologies/ICD10CM/submissions/1/icd10cm.owl"/>
+  </owl:Ontology>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/A00">
+    <skos:prefLabel>Cholera</skos:prefLabel>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/A01">
+    <skos:prefLabel>Typhoid and paratyphoid fevers</skos:prefLabel>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/A02">
+    <skos:prefLabel>Other salmonella infections</skos:prefLabel>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/B20">
+    <skos:prefLabel>Human immunodeficiency virus disease</skos:prefLabel>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/B21">
+    <skos:prefLabel>HIV disease resulting in other specified diseases</skos:prefLabel>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/Z00">
+    <skos:prefLabel>Encounter for general examination</skos:prefLabel>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/Z01">
+    <skos:prefLabel>Encounter for other special examination</skos:prefLabel>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/Z02">
+    <skos:prefLabel>Encounter for administrative examination</skos:prefLabel>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/Z03">
+    <skos:prefLabel>Encounter for medical observation</skos:prefLabel>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/Z04">
+    <skos:prefLabel>Encounter for examination and observation</skos:prefLabel>
+  </owl:Class>
+</rdf:RDF>

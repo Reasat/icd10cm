@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns="http://example.org/icd10cm-sparql-test#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:oboInOwl="http://www.geneontology.org/formats/oboInOwl#">
+  <owl:Ontology rdf:about="http://example.org/icd10cm-sparql-test"/>
+  <!-- fix_omimps: hasDbXref MIM:PS123 should become OMIMPS:123 -->
+  <owl:Class rdf:about="http://example.org/icd10cm-sparql-test#mim_ps_term">
+    <rdfs:label>MIM PS test</rdfs:label>
+    <oboInOwl:hasDbXref rdf:datatype="http://www.w3.org/2001/XMLSchema#string">MIM:PS123</oboInOwl:hasDbXref>
+  </owl:Class>
+  <!-- fix-labels-with-brackets: label ending in ) gets stripped synonym -->
+  <owl:Class rdf:about="http://example.org/icd10cm-sparql-test#bracketed_label_term">
+    <rdfs:label>Cholera (disease)</rdfs:label>
+  </owl:Class>
+  <!-- exact_syn_from_label: non-deprecated gets exact synonym from label -->
+  <owl:Class rdf:about="http://example.org/icd10cm-sparql-test#label_synonym_term">
+    <rdfs:label>Typhoid fever</rdfs:label>
+  </owl:Class>
+  <!-- exact_syn_from_label: deprecated term must NOT get synonym -->
+  <owl:Class rdf:about="http://example.org/icd10cm-sparql-test#deprecated_term">
+    <rdfs:label>Deprecated disease</rdfs:label>
+    <owl:deprecated rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</owl:deprecated>
+  </owl:Class>
+</rdf:RDF>
