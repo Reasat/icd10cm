@@ -1,0 +1,10 @@
+### All terms
+SELECT DISTINCT ?term
+WHERE {
+  { 
+    { ?s1 ?p1 ?term . }
+    UNION
+    { ?term ?p2 ?o2 . }
+  }
+  FILTER(isIRI(?term) && (regex(str(?term), "http://purl.bioontology.org/ontology/ICD10CM/")))
+}
