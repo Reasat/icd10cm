@@ -39,7 +39,7 @@ Reproduces what used to run in mondo-ingest at [line 198](https://github.com/mon
 
 ### Relevant signature: build `tmp/icd10cm_relevant_signature.txt`
 
-Runs as a separate Make target (prerequisite of the component target). Queries `tmp/mirror-icd10cm.owl` with `sparql/icd10cm-relevant-signature.sparql` and writes one IRI per line (e.g. `http://purl.bioontology.org/ontology/ICD10CM/A00`) to `tmp/icd10cm_relevant_signature.txt`.
+Runs as a separate Make target (prerequisite of the component target). Queries `tmp/mirror-icd10cm.owl` with `sparql/icd10cm-relevant-signature.sparql` and writes one IRI per line (e.g. `http://purl.bioontology.org/ontology/ICD10CM/A00`) to `tmp/icd10cm_relevant_signature.txt`. ROBOT outputs a header row (`term`); the file is used as-is by `remove -T`, same as in mondo-ingest (the header line matches to nothing and has no effect for now).
 
 ### Component: build `icd10cm.owl`
 
