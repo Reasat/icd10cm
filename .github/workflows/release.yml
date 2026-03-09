@@ -13,15 +13,25 @@ on:
     branches: [main]
     paths:
       - "Makefile"
-      - "config/**" # to be fleshed out later
+      - "config/**"
       - "scripts/**"
+      - "sparql/**"
+      - "tests/**"
 
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4 
+        uses: actions/checkout@v4
+
+      - name: Test
+        run: |
+          docker run --rm \
+            -v "$PWD:/work" \
+            -w /work \
+            ghcr.io/obolibrary/odkfull:v1.5.3 \
+            bash -c "pip3 install -r requirements.txt && make test"
 
       - name: Build icd10cm.owl
         env:
