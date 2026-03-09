@@ -6,6 +6,7 @@ icd10cm.owl
 .icd10cm.annotated.owl
 .bioportal.env
 .env
+tmp/
 .cursor/
 # Python
 __pycache__/
