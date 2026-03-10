@@ -21,6 +21,8 @@ on:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # create releases and upload assets; required for generate_release_notes
     steps:
       - name: Checkout
         uses: actions/checkout@v4
