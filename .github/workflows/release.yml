@@ -28,6 +28,7 @@ jobs:
       - name: Test
         run: |
           docker run --rm \
+            -e ROBOT_PLUGINS_DIRECTORY=/tools/robot-plugins \
             -v "$PWD:/work" \
             -w /work \
             obolibrary/odkfull:v1.6 \
@@ -43,6 +44,7 @@ jobs:
           fi
           docker run --rm \
             -e BIOPORTAL_API_KEY \
+            -e ROBOT_PLUGINS_DIRECTORY=/tools/robot-plugins \
             -v "$PWD:/work" \
             -w /work \
             obolibrary/odkfull:v1.6 \
