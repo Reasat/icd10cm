@@ -30,7 +30,7 @@ jobs:
           docker run --rm \
             -v "$PWD:/work" \
             -w /work \
-            obolibrary/odkfull:v1.6.0 \
+            obolibrary/odkfull:v1.6 \
             bash -c "pip3 install --break-system-packages -r requirements.txt && make test"
 
       - name: Build icd10cm.owl
@@ -45,7 +45,7 @@ jobs:
             -e BIOPORTAL_API_KEY \
             -v "$PWD:/work" \
             -w /work \
-            obolibrary/odkfull:v1.6.0 \
+            obolibrary/odkfull:v1.6 \
             bash -c "pip3 install --break-system-packages -r requirements.txt && make build"
 
       - name: Set release tag
