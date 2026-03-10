@@ -31,7 +31,7 @@ jobs:
             -v "$PWD:/work" \
             -w /work \
             obolibrary/odkfull:v1.5.3 \
-            bash -c "pip3 install -r requirements.txt && make test"
+            bash -c "pip3 install --break-system-packages -r requirements.txt && make test"
 
       - name: Build icd10cm.owl
         env:
@@ -46,7 +46,7 @@ jobs:
             -v "$PWD:/work" \
             -w /work \
             obolibrary/odkfull:v1.5.3 \
-            bash -c "pip3 install -r requirements.txt && make build"
+            bash -c "pip3 install --break-system-packages -r requirements.txt && make build"
 
       - name: Set release tag
         id: version
