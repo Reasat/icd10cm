@@ -3,8 +3,8 @@
 Resolve the latest ICD10CM submission from BioPortal and print download URL and submission ID.
 
 Usage:
-  python get_latest_bioportal.py [--apikey KEY]
-  Or set API_KEY in .env (via python-dotenv) or in the environment.
+  Set BIOPORTAL_API_KEY in .env (via python-dotenv) or in the environment, then:
+  python get_latest_bioportal.py
 
 Output (to stdout):
   DOWNLOAD_URL=<url>
@@ -12,7 +12,6 @@ Output (to stdout):
   VERSION_IRI=<version IRI for this submission>
 """
 
-import argparse
 import json
 import os
 import re
@@ -47,18 +46,12 @@ def _released_ts(submission: dict) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Get latest ICD10CM download URL from BioPortal")
-    parser.add_argument(
-        "--apikey",
-        default=os.environ.get("API_KEY", ""),
-        help="BioPortal API key (or set API_KEY in .env or environment)",
-    )
-    args = parser.parse_args()
-    if not args.apikey:
-        print("API_KEY must be set in .env, in the environment, or passed as --apikey", file=sys.stderr)
+    apikey = os.environ.get("BIOPORTAL_API_KEY", "")
+    if not apikey:
+        print("BIOPORTAL_API_KEY must be set in .env or in the environment", file=sys.stderr)
         sys.exit(1)
 
-    url = f"{BIOPORTAL_BASE}/ontologies/{ONTOLOGY_ACRONYM}/submissions?apikey={args.apikey}&display_links=false"
+    url = f"{BIOPORTAL_BASE}/ontologies/{ONTOLOGY_ACRONYM}/submissions?apikey={apikey}&display_links=false"
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
     with urllib.request.urlopen(req) as resp:
         data = json.load(resp)
@@ -78,7 +71,7 @@ def main() -> None:
         sys.exit(1)
 
     submission_id = str(submission_id)
-    download_url = f"{BIOPORTAL_BASE}/ontologies/{ONTOLOGY_ACRONYM}/submissions/{submission_id}/download?apikey={args.apikey}"
+    download_url = f"{BIOPORTAL_BASE}/ontologies/{ONTOLOGY_ACRONYM}/submissions/{submission_id}/download?apikey={apikey}"
     version_iri = f"{BIOPORTAL_BASE}/ontologies/{ONTOLOGY_ACRONYM}/submissions/{submission_id}/icd10cm.owl"
 
     print(f"DOWNLOAD_URL={download_url}")
