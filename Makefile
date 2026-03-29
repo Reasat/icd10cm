@@ -1,7 +1,7 @@
 # ICD10CM preprocessed build
 # Part A: Mirror build      → tmp/mirror-icd10cm.owl
 # Part B: Component build   → icd10cm.owl
-# Requires: ROBOT, Python 3, wget. Set BIOPORTAL_API_KEY (or pass apikey= to make).
+# Requires: ROBOT, Python 3, wget. Set BIOPORTAL_API_KEY in .env or environment.
 
 ROBOT       ?= robot
 PYTHON      ?= python3
@@ -27,13 +27,9 @@ $(TMP_DIR):
 	mkdir -p $(TMP_DIR)
 
 # ── Resolve BioPortal submission ──────────────────────────────────────────────
-# API key: set BIOPORTAL_API_KEY or make apikey=KEY, or put API_KEY in .env.
+# BIOPORTAL_API_KEY must be set in .env or environment.
 $(BP_ENV): $(SCRIPTS_DIR)/get_latest_bioportal.py
-	@if [ -n "$$BIOPORTAL_API_KEY" ] || [ -n "$(apikey)" ]; then \
-		$(PYTHON) $(SCRIPTS_DIR)/get_latest_bioportal.py --apikey "$${BIOPORTAL_API_KEY:-$(apikey)}" > $@; \
-	else \
-		$(PYTHON) $(SCRIPTS_DIR)/get_latest_bioportal.py > $@; \
-	fi
+	$(PYTHON) $(SCRIPTS_DIR)/get_latest_bioportal.py > $@
 	@echo "Resolved latest BioPortal submission; see $@"
 
 # ── Part A: Mirror build ──────────────────────────────────────────────────────
@@ -41,6 +37,10 @@ $(BP_ENV): $(SCRIPTS_DIR)/get_latest_bioportal.py
 # annotates with stable IRI and version IRI, normalizes.
 $(MIRROR_OWL): $(BP_ENV) $(CONFIG_DIR)/remove_properties.txt | $(TMP_DIR)
 	@. ./$(BP_ENV) && \
+	if [ -z "$$DOWNLOAD_URL" ]; then \
+		echo "Error: DOWNLOAD_URL is empty. Set BIOPORTAL_API_KEY and run 'make $(BP_ENV)'." >&2; \
+		exit 1; \
+	fi && \
 	echo "Downloading ICD10CM from BioPortal..." && \
 	$(WGET) "$$DOWNLOAD_URL" -O $(TMP_OWL) && \
 	echo "Running: robot remove + annotate + odk:normalize -> $@" && \
