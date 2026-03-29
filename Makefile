@@ -28,6 +28,7 @@ $(TMP_DIR):
 
 # ── Resolve BioPortal submission ──────────────────────────────────────────────
 # BIOPORTAL_API_KEY must be set in .env or environment.
+# Optional: BIOPORTAL_SUBMISSION_ID=27 pins a submission (see scripts/get_latest_bioportal.py).
 $(BP_ENV): $(SCRIPTS_DIR)/get_latest_bioportal.py
 	$(PYTHON) $(SCRIPTS_DIR)/get_latest_bioportal.py > $@
 	@echo "Resolved latest BioPortal submission; see $@"
