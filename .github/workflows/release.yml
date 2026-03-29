@@ -1,5 +1,5 @@
 # Build preprocessed ICD10CM and publish YAML + OWL as GitHub Release assets.
-# Pipeline: ROBOT mirror → transform.py (YAML) → linkml-validate → linkml-data2owl (OWL).
+# Pipeline: ROBOT mirror → component OWL → transform.py (YAML) → linkml-validate → cp component → icd10cm.owl.
 # Run on schedule, manual trigger, or push to main.
 # Requires repository secret: BIOPORTAL_API_KEY
 
@@ -48,7 +48,7 @@ jobs:
             obolibrary/odkfull:v1.6 \
             bash -c "pip3 install --break-system-packages uv && uv sync && just test"
 
-      - name: Build (mirror → YAML → validate → OWL)
+      - name: Build (mirror → component → YAML → validate → publish OWL)
         env:
           BIOPORTAL_API_KEY: ${{ secrets.BIOPORTAL_API_KEY }}
         run: |
