@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns="http://purl.bioontology.org/ontology/ICD10CM/"
+     xmlns:oboInOwl="http://www.geneontology.org/formats/oboInOwl#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+  <owl:Ontology rdf:about="http://purl.obolibrary.org/obo/mondo/sources/icd10cm.owl">
+    <rdfs:label>ICD10CM</rdfs:label>
+    <owl:versionInfo>2025-01-01</owl:versionInfo>
+  </owl:Ontology>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/A00">
+    <rdfs:label>Cholera</rdfs:label>
+    <oboInOwl:hasExactSynonym>Cholera</oboInOwl:hasExactSynonym>
+    <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/A01">
+    <rdfs:label>Typhoid and paratyphoid fevers</rdfs:label>
+    <oboInOwl:hasExactSynonym>Typhoid and paratyphoid fevers</oboInOwl:hasExactSynonym>
+    <rdfs:subClassOf rdf:resource="http://purl.bioontology.org/ontology/ICD10CM/A00"/>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/A02">
+    <rdfs:label>Other salmonella infections</rdfs:label>
+    <oboInOwl:hasExactSynonym>Other salmonella infections</oboInOwl:hasExactSynonym>
+    <rdfs:subClassOf rdf:resource="http://purl.bioontology.org/ontology/ICD10CM/A00"/>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/B20">
+    <rdfs:label>Human immunodeficiency virus disease</rdfs:label>
+    <owl:deprecated rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</owl:deprecated>
+    <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/B21">
+    <rdfs:label>HIV disease resulting in other specified diseases</rdfs:label>
+    <oboInOwl:hasExactSynonym>HIV disease resulting in other specified diseases</oboInOwl:hasExactSynonym>
+    <rdfs:subClassOf rdf:resource="http://purl.bioontology.org/ontology/ICD10CM/B20"/>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/Z00">
+    <rdfs:label>Encounter for general examination (Z00)</rdfs:label>
+    <oboInOwl:hasExactSynonym>Encounter for general examination (Z00)</oboInOwl:hasExactSynonym>
+    <oboInOwl:hasExactSynonym>encounter for general examination</oboInOwl:hasExactSynonym>
+    <rdfs:subClassOf rdf:resource="http://www.w3.org/2002/07/owl#Thing"/>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/Z01">
+    <rdfs:label>Encounter for other special examination</rdfs:label>
+    <oboInOwl:hasExactSynonym>Encounter for other special examination</oboInOwl:hasExactSynonym>
+    <rdfs:subClassOf rdf:resource="http://purl.bioontology.org/ontology/ICD10CM/Z00"/>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/Z02">
+    <rdfs:label>Encounter for administrative examination</rdfs:label>
+    <oboInOwl:hasExactSynonym>Encounter for administrative examination</oboInOwl:hasExactSynonym>
+    <rdfs:subClassOf rdf:resource="http://purl.bioontology.org/ontology/ICD10CM/Z00"/>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/Z03">
+    <rdfs:label>Encounter for medical observation</rdfs:label>
+    <oboInOwl:hasExactSynonym>Encounter for medical observation</oboInOwl:hasExactSynonym>
+    <rdfs:subClassOf rdf:resource="http://purl.bioontology.org/ontology/ICD10CM/Z00"/>
+  </owl:Class>
+  <owl:Class rdf:about="http://purl.bioontology.org/ontology/ICD10CM/Z04">
+    <rdfs:label>Encounter for examination and observation</rdfs:label>
+    <oboInOwl:hasExactSynonym>Encounter for examination and observation</oboInOwl:hasExactSynonym>
+    <rdfs:subClassOf rdf:resource="http://purl.bioontology.org/ontology/ICD10CM/Z00"/>
+  </owl:Class>
+</rdf:RDF>

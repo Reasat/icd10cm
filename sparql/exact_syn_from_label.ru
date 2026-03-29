@@ -18,7 +18,8 @@ INSERT {
            owl:annotatedTarget ?label ;
         oboInOwl:hasSynonymType <http://purl.obolibrary.org/obo/mondo#GENERATED_FROM_LABEL> ].
 } WHERE {
-
+  
+  ?cls a owl:Class .
   ?cls rdfs:label ?label .
 
   FILTER NOT EXISTS { ?cls owl:deprecated ?deprecated . }
