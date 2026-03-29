@@ -1,5 +1,6 @@
 # Justfile for icd10cm — full source pipeline (replaces Makefile)
 # Prerequisites: uv (https://docs.astral.sh/uv/), robot, wget
+# Canonical icd10cm.owl = ROBOT component (tmp/icd10cm-component.owl), not linkml-data2owl.
 # Usage: just <recipe>
 
 SCHEMA        := "linkml/mondo_source_schema.yaml"
@@ -13,7 +14,8 @@ OWL_OUT       := "icd10cm.owl"
 ONTOLOGY_IRI  := "https://github.com/monarch-initiative/icd10cm/releases/latest/download/icd10cm.owl"
 URIBASE       := "http://purl.obolibrary.org/obo"
 ROBOT                  := "robot"
-ROBOT_PLUGINS_DIRECTORY := env("ROBOT_PLUGINS_DIRECTORY")
+# Optional: set when using ROBOT plugins (e.g. odk). Empty is fine for stock robot.
+ROBOT_PLUGINS_DIRECTORY := env_var_or_default("ROBOT_PLUGINS_DIRECTORY", "")
 PYTHON                 := "uv run python"
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
@@ -24,8 +26,9 @@ install:
 
 # ── Resolve BioPortal submission ──────────────────────────────────────────────
 
-# Resolve latest ICD10CM submission from BioPortal → .bioportal.env
+# Resolve ICD10CM submission from BioPortal → .bioportal.env
 # Reads BIOPORTAL_API_KEY from environment or .env file.
+# Optional: set BIOPORTAL_SUBMISSION_ID (e.g. 27) to pin a submission instead of latest.
 resolve:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -114,9 +117,14 @@ validate:
         --target-class OntologyDocument \
         {{ YAML_OUT }}
 
-# ── OWL export ────────────────────────────────────────────────────────────────
+# ── OWL publish (canonical) ───────────────────────────────────────────────────
 
-# Convert schema-conformant YAML → OWL using linkml-data2owl
+# Full-fidelity OWL = ROBOT component (no YAML round-trip). Copies tmp → repo root.
+publish-owl:
+    cp {{ COMPONENT_OWL }} {{ OWL_OUT }}
+    @echo "Published {{ OWL_OUT }} (identical to {{ COMPONENT_OWL }})"
+
+# Optional: regenerate OWL from YAML via LinkML (lossy vs component; for experiments only).
 data2owl:
     uv run linkml-data2owl \
         --schema {{ SCHEMA }} \
@@ -125,13 +133,13 @@ data2owl:
 
 # ── Composite targets ─────────────────────────────────────────────────────────
 
-# Full build: mirror → component → transform → validate → OWL export
-build: component transform validate data2owl
-    @echo "Build complete: {{ YAML_OUT }} and {{ OWL_OUT }}"
+# Full build: mirror → component → YAML → validate → copy component OWL to {{ OWL_OUT }}
+build: component transform validate publish-owl
+    @echo "Build complete: {{ YAML_OUT }} (LinkML) and {{ OWL_OUT }} (ROBOT component copy)"
 
-# Re-run from component onward (transform → validate; component runs if needed)
-iterate: transform validate
-    @echo "Iteration complete: {{ YAML_OUT }} is schema-valid"
+# Re-run transform → validate → publish-owl (assumes component already built)
+iterate: transform validate publish-owl
+    @echo "Iteration complete: {{ YAML_OUT }} valid; {{ OWL_OUT }} = component copy"
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 

@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
-Resolve the latest ICD10CM submission from BioPortal and print download URL and submission ID.
+Resolve an ICD10CM submission from BioPortal and print download URL and submission ID.
 
 Usage:
   Set BIOPORTAL_API_KEY in .env (via python-dotenv) or in the environment, then:
   python get_latest_bioportal.py
+
+  To pin a specific submission (skip "latest" discovery):
+  BIOPORTAL_SUBMISSION_ID=27 python get_latest_bioportal.py
 
 Output (to stdout):
   DOWNLOAD_URL=<url>
@@ -45,11 +48,27 @@ def _released_ts(submission: dict) -> str:
     return submission.get("released") or ""
 
 
+def _emit_for_submission_id(apikey: str, submission_id: str) -> None:
+    download_url = f"{BIOPORTAL_BASE}/ontologies/{ONTOLOGY_ACRONYM}/submissions/{submission_id}/download?apikey={apikey}"
+    version_iri = f"{BIOPORTAL_BASE}/ontologies/{ONTOLOGY_ACRONYM}/submissions/{submission_id}/icd10cm.owl"
+    print(f"DOWNLOAD_URL={download_url}")
+    print(f"SUBMISSION_ID={submission_id}")
+    print(f"VERSION_IRI={version_iri}")
+
+
 def main() -> None:
     apikey = os.environ.get("BIOPORTAL_API_KEY", "")
     if not apikey:
         print("BIOPORTAL_API_KEY must be set in .env or in the environment", file=sys.stderr)
         sys.exit(1)
+
+    pinned = os.environ.get("BIOPORTAL_SUBMISSION_ID", "").strip()
+    if pinned:
+        if not pinned.isdigit():
+            print("BIOPORTAL_SUBMISSION_ID must be a positive integer", file=sys.stderr)
+            sys.exit(1)
+        _emit_for_submission_id(apikey, pinned)
+        return
 
     url = f"{BIOPORTAL_BASE}/ontologies/{ONTOLOGY_ACRONYM}/submissions?apikey={apikey}&display_links=false"
     req = urllib.request.Request(url, headers={"Accept": "application/json"})
@@ -71,12 +90,7 @@ def main() -> None:
         sys.exit(1)
 
     submission_id = str(submission_id)
-    download_url = f"{BIOPORTAL_BASE}/ontologies/{ONTOLOGY_ACRONYM}/submissions/{submission_id}/download?apikey={apikey}"
-    version_iri = f"{BIOPORTAL_BASE}/ontologies/{ONTOLOGY_ACRONYM}/submissions/{submission_id}/icd10cm.owl"
-
-    print(f"DOWNLOAD_URL={download_url}")
-    print(f"SUBMISSION_ID={submission_id}")
-    print(f"VERSION_IRI={version_iri}")
+    _emit_for_submission_id(apikey, submission_id)
 
 
 if __name__ == "__main__":
