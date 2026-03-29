@@ -1,12 +1,9 @@
 # Build outputs and intermediates
 icd10cm.owl
-.icd10cm.tmp.owl
-.icd10cm.no-imports.owl
-.icd10cm.no-props.owl
-.icd10cm.annotated.owl
+icd10cm.yaml
+tmp/
 .bioportal.env
 .env
-tmp/
 .cursor/
 # Python
 __pycache__/
