@@ -37,6 +37,9 @@ classes:
     slots:
       - title
       - version
+      - source
+      - ontology_comment
+      - version_iri
       - terms
 
   OntologyTerm:
@@ -73,6 +76,21 @@ slots:
     description: Version string for this release (e.g. "2024ab" or "2025-03-01").
     slot_uri: owl:versionInfo
     required: true
+
+  source:
+    description: >-
+      Provenance IRI for the upstream ontology file (oboInOwl:source), e.g. BioPortal submission URL.
+    slot_uri: oboInOwl:source
+    range: uriorcurie
+
+  ontology_comment:
+    description: Ontology-level rdfs:comment (e.g. UMLS2RDF tool line).
+    slot_uri: rdfs:comment
+
+  version_iri:
+    description: Ontology owl:versionIRI for this build (distinct from versionInfo text).
+    slot_uri: owl:versionIRI
+    range: uriorcurie
 
   terms:
     description: All terms included in this source release.
