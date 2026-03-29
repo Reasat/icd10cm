@@ -55,19 +55,30 @@ def iri_to_curie(iri: str) -> str:
 
 # ── Graph traversal ───────────────────────────────────────────────────────────
 
-def extract_ontology_metadata(g: Graph) -> tuple[str, str]:
-    """Return (title, version) from the owl:Ontology node."""
-    title = "ICD10CM"
-    version = "unknown"
+def extract_ontology_metadata(g: Graph) -> dict:
+    """Return document-level fields from the owl:Ontology node (for YAML / LinkML round-trip)."""
+    meta: dict = {
+        "title": "ICD10CM",
+        "version": "unknown",
+    }
     for ont in g.subjects(RDF.type, OWL.Ontology):
         lbl = g.value(ont, RDFS.label)
         if lbl:
-            title = str(lbl)
+            meta["title"] = str(lbl)
         ver = g.value(ont, OWL.versionInfo)
         if ver:
-            version = str(ver)
+            meta["version"] = str(ver)
+        src = g.value(ont, OBOINOWL.source)
+        if src:
+            meta["source"] = str(src)
+        cmt = g.value(ont, RDFS.comment)
+        if cmt:
+            meta["ontology_comment"] = str(cmt)
+        viri = g.value(ont, OWL.versionIRI)
+        if viri:
+            meta["version_iri"] = str(viri)
         break
-    return title, version
+    return meta
 
 
 def extract_terms(g: Graph) -> list[dict]:
@@ -146,15 +157,11 @@ def transform(input_path: Path, output_path: Path) -> None:
     g = Graph()
     g.parse(str(input_path))
 
-    title, version = extract_ontology_metadata(g)
+    doc = extract_ontology_metadata(g)
     terms = extract_terms(g)
     print(f"Extracted {len(terms)} ICD10CM terms", file=sys.stderr)
 
-    doc = {
-        "title": title,
-        "version": version,
-        "terms": terms,
-    }
+    doc["terms"] = terms
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as fh:
