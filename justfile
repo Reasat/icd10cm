@@ -9,12 +9,15 @@ TMP_OWL       := "tmp/.icd10cm.tmp.owl"
 SIG_TXT       := "tmp/icd10cm_relevant_signature.txt"
 BP_ENV        := ".bioportal.env"
 YAML_OUT      := "icd10cm.yaml"
-OWL_OUT       := "icd10cm.owl"
+# LinkML OWL dump (ROBOT component stays in COMPONENT_OWL / copy to icd10cm.owl if you publish).
+OWL_LINKML_OUT := "icd10cm_from_linkml.owl"
+OWL_OUT        := "icd10cm.owl"
 ONTOLOGY_IRI  := "https://github.com/monarch-initiative/icd10cm/releases/latest/download/icd10cm.owl"
 URIBASE       := "http://purl.obolibrary.org/obo"
 ROBOT                  := "robot"
 ROBOT_PLUGINS_DIRECTORY := env("ROBOT_PLUGINS_DIRECTORY")
-PYTHON                 := "uv run python"
+# --no-sync avoids editable .pth replace failures when .venv is not writable (e.g. root-owned).
+PYTHON                 := "uv run --no-sync python"
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -109,7 +112,7 @@ transform: component
 
 # Validate YAML against the LinkML schema (drift detection)
 validate:
-    uv run linkml-validate \
+    uv run --no-sync python -m linkml.validator.cli \
         --schema {{ SCHEMA }} \
         --target-class OntologyDocument \
         {{ YAML_OUT }}
@@ -118,16 +121,16 @@ validate:
 
 # Convert schema-conformant YAML → OWL (linkml-owl OWLDumper CLI)
 data2owl:
-    uv run python -m linkml_owl.dumpers.owl_dumper \
+    uv run --no-sync python -m linkml_owl.dumpers.owl_dumper \
         --schema {{ SCHEMA }} \
-        -o {{ OWL_OUT }} \
+        -o {{ OWL_LINKML_OUT }} \
         {{ YAML_OUT }}
 
 # ── Composite targets ─────────────────────────────────────────────────────────
 
 # Full build: mirror → component → transform → validate → OWL export
 build: component transform validate data2owl
-    @echo "Build complete: {{ YAML_OUT }} and {{ OWL_OUT }}"
+    @echo "Build complete: {{ YAML_OUT }}, {{ COMPONENT_OWL }} (ROBOT), {{ OWL_LINKML_OUT }} (LinkML)"
 
 # Re-run from component onward (transform → validate; component runs if needed)
 iterate: transform validate
@@ -137,13 +140,13 @@ iterate: transform validate
 
 # Run all tests
 test:
-    uv run python -m unittest discover -s tests -p "test_*.py" -v
+    uv run --no-sync python -m unittest discover -s tests -p "test_*.py" -v
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 
 # Remove all generated files
 clean:
-    rm -f {{ OWL_OUT }} {{ YAML_OUT }} {{ TMP_OWL }} {{ BP_ENV }}
+    rm -f {{ OWL_OUT }} {{ OWL_LINKML_OUT }} {{ YAML_OUT }} {{ TMP_OWL }} {{ BP_ENV }}
     rm -rf tmp/
 
 # ── Docs ──────────────────────────────────────────────────────────────────────
@@ -156,11 +159,13 @@ mondo-ingest-help:
 
 # ── Release ───────────────────────────────────────────────────────────────────
 
-# Create a GitHub release with both YAML and OWL attached.
+# Create a GitHub release with YAML, ROBOT component OWL, and LinkML OWL attached.
 # Usage: just release v20250310-1
-release tag:
+release tag: build
+    cp {{ COMPONENT_OWL }} {{ OWL_OUT }}
     gh release create {{ tag }} \
         --title "Release {{ tag }}" \
         --generate-notes \
         {{ YAML_OUT }} \
-        {{ OWL_OUT }}
+        {{ OWL_OUT }} \
+        {{ OWL_LINKML_OUT }}

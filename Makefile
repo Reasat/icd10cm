@@ -6,11 +6,15 @@
 ROBOT       ?= robot
 PYTHON      ?= python3
 WGET        ?= wget
+# Skip venv sync on each invocation — avoids editable _icd10cm.pth replace errors when .venv is not writable (e.g. root-owned). Run `uv sync` once after clone or when deps change.
+UV_RUN      ?= uv run --no-sync
 CONFIG_DIR  := config
 SCRIPTS_DIR := scripts
 SPARQL_DIR  := sparql
 TMP_DIR     := tmp
 OUTPUT_OWL  := icd10cm.owl
+# LinkML OWL dump from icd10cm.yaml (does not replace the ROBOT component file).
+OUTPUT_OWL_LINKML := icd10cm_from_linkml.owl
 TMP_OWL     := .icd10cm.tmp.owl
 MIRROR_OWL  := $(TMP_DIR)/mirror-icd10cm.owl
 SIG_TXT     := $(TMP_DIR)/icd10cm_relevant_signature.txt
@@ -87,19 +91,19 @@ $(OUTPUT_OWL): $(SIG_TXT) $(MIRROR_OWL) \
 build: $(OUTPUT_OWL)
 	@echo "Build complete: $(OUTPUT_OWL)"
 
-# ROBOT component + LinkML transform + validate + data2owl (same pipeline as `just build`)
+# ROBOT component + LinkML transform + validate + data2owl → icd10cm_from_linkml.owl (same pipeline as `just build`)
 build-release: build
-	uv run python scripts/transform.py --input $(OUTPUT_OWL) --schema $(SCHEMA) --output $(YAML_OUT)
-	uv run linkml-validate --schema $(SCHEMA) --target-class OntologyDocument $(YAML_OUT)
-	uv run python -m linkml_owl.dumpers.owl_dumper --schema $(SCHEMA) -o $(OUTPUT_OWL) $(YAML_OUT)
-	@echo "Build complete: $(YAML_OUT) and $(OUTPUT_OWL)"
+	$(UV_RUN) python scripts/transform.py --input $(OUTPUT_OWL) --schema $(SCHEMA) --output $(YAML_OUT)
+	$(UV_RUN) python -m linkml.validator.cli --schema $(SCHEMA) --target-class OntologyDocument $(YAML_OUT)
+	$(UV_RUN) python -m linkml_owl.dumpers.owl_dumper --schema $(SCHEMA) -o $(OUTPUT_OWL_LINKML) $(YAML_OUT)
+	@echo "Build complete: $(YAML_OUT), $(OUTPUT_OWL) (ROBOT), $(OUTPUT_OWL_LINKML) (LinkML)"
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
 env: $(BP_ENV)
 	@cat $(BP_ENV)
 
 clean:
-	rm -f $(OUTPUT_OWL) $(YAML_OUT) $(TMP_OWL) $(BP_ENV)
+	rm -f $(OUTPUT_OWL) $(OUTPUT_OWL_LINKML) $(YAML_OUT) $(TMP_OWL) $(BP_ENV)
 	rm -rf $(TMP_DIR)
 
 # ── Tests (require ROBOT and rdflib: pip install -r requirements.txt) ─────────
