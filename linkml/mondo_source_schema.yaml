@@ -5,7 +5,7 @@ description: >-
   synonyms, hierarchy. Extended slots align with predicates allowed to remain on
   ICD10CM component OWL after ROBOT (see config/properties.txt); populate only what
   your transform exports.
-version: 0.2.0
+version: 0.3.0
 
 prefixes:
   linkml:     https://w3id.org/linkml/
@@ -35,11 +35,18 @@ classes:
   OntologyDocument:
     description: >-
       Top-level container representing a single ontology source release.
+      Slots mirror owl:Ontology annotations on the component file (rdfs:label, versionInfo,
+      comments, source, dcterms:title, ontology-level synonyms).
     tree_root: true
     class_uri: owl:Ontology
     slots:
       - title
+      - dcterms_title
       - version
+      - comments
+      - sources
+      - descriptions
+      - exact_synonyms
       - terms
 
   OntologyTerm:
@@ -90,9 +97,17 @@ slots:
   # -- Document-level metadata --
 
   title:
-    description: Human-readable title of the ontology source.
-    slot_uri: dcterms:title
+    description: >-
+      Primary human-readable name of the ontology (maps to rdfs:label on owl:Ontology,
+      matching BioPortal / component OWL).
+    slot_uri: rdfs:label
     required: true
+
+  dcterms_title:
+    description: Optional Dublin Core title (dcterms:title) when present on the ontology.
+    slot_uri: dcterms:title
+    annotations:
+      owl: AnnotationAssertion
 
   version:
     description: Version string for this release (e.g. "2024ab" or "2025-03-01").
