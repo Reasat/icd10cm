@@ -61,7 +61,7 @@ All steps below are chained into a single `robot` invocation; each row is a subc
 | **SPARQL updates** | `robot query --update sparql/fix_omimps.ru --update sparql/fix-labels-with-brackets.ru --update sparql/exact_syn_from_label.ru` — exactly these three updates, in this order: normalize OMIM xrefs, fix labels with brackets, add exact synonyms from labels. |
 | **Remove extra properties** | `robot remove -T config/properties.txt --select complement --select properties --trim true` — keep only Mondo-approved properties; `--trim true` removes dangling references left after property removal. |
 | **Annotate** | `robot annotate --ontology-iri $(URIBASE)/mondo/sources/icd10cm.owl --version-iri $(URIBASE)/mondo/sources/$(TODAY)/icd10cm.owl` |
-| **Output** | Makefile: `-o icd10cm.owl`. Justfile: `-o tmp/icd10cm-component.owl`, then `just publish-owl` copies to `icd10cm.owl`. |
+| **Output** | Makefile: `-o icd10cm.owl`. Justfile: `-o tmp/icd10cm-component.owl`; copy to root `icd10cm.owl` via **`just release`** or manually (see table above). |
 
 ### Publish
 
@@ -72,14 +72,14 @@ Release **`icd10cm.owl`** via GitHub Releases:
 
 ---
 
-## Part C: LinkML (schema, YAML, validation, optional LinkML OWL)
+## Part C: LinkML (schema, YAML, validation, LinkML OWL)
 
-This repo maintains **`linkml/mondo_source_schema.yaml`**, **`scripts/transform.py`**, and the generated **`icd10cm.yaml`**. Together they provide a **structured, validateable projection** of the ROBOT component graph for tooling and CI. They are **not** the canonical source for what Mondo ingests: the **released artifact** remains **`icd10cm.owl`** from Part B (ROBOT).
+**`linkml/mondo_source_schema.yaml`**, **`scripts/transform.py`**, **`icd10cm.yaml`**, **`python -m linkml.validator.cli`**, and **`python -m linkml_owl.dumpers.owl_dumper`** (same as **`linkml-data2owl`**) → **`icd10cm_from_linkml.owl`**, wired through **`make build-release`** / **`just build`** and release workflows. Mondo ingests **`icd10cm.owl`** from Part B; the LinkML OWL is a separate file.
 
 ### Role of the data
 
 - **`icd10cm.yaml`** — Lossless enough for **term-level** fields the transform exports (labels, definitions, synonyms, hierarchy, and other slots aligned with `config/properties.txt`). **Ontology header** fields on `owl:Ontology` are also exported (see schema). A full **byte-for-byte** match between ROBOT OWL and **`icd10cm_from_linkml.owl`** is **not** guaranteed (e.g. RDF language tags on literals, axiom surface form, linkml-owl emission).
-- **`mondo_source_schema.yaml`** — LinkML schema (currently **v0.3.x**): documents **`OntologyDocument`** (ontology IRI metadata + `terms`) and **`OntologyTerm`**. Document-level slots include **`title`** (`rdfs:label`), optional **`dcterms_title`**, **`version`** (`owl:versionInfo`), and optional **`comments`**, **`sources`**, **`descriptions`**, **`exact_synonyms`** on the ontology node; term-level slots mirror the allowlisted predicates where **`transform.py`** fills them.
+- **`mondo_source_schema.yaml`** — LinkML schema (currently **v0.3.x**): documents **`OntologyDocument`** (ontology IRI metadata + `terms`) and **`OntologyTerm`**. Document-level slots include **`title`** (`rdfs:label`), optional **`dcterms_title`**, **`version`** (`owl:versionInfo`), and optional **`comments`**, **`sources`**, **`descriptions`**. Ontology-level **`oboInOwl:hasExactSynonym`** is omitted from export (linkml-owl / ROBOT interop); term-level slots mirror the allowlisted predicates where **`transform.py`** fills them.
 
 ### Commands
 
@@ -87,17 +87,17 @@ This repo maintains **`linkml/mondo_source_schema.yaml`**, **`scripts/transform.
 |------|-----------|
 | **Serialize** | **`scripts/transform.py`** — input: ROBOT component OWL (`icd10cm.owl` or `tmp/icd10cm-component.owl`); output: **`icd10cm.yaml`**. |
 | **Validate** | **`python -m linkml.validator.cli`** — `linkml-validate` as a console script can fail under `uv run` on some systems; the Makefile/justfile call the module directly. Target class: **`OntologyDocument`**. |
-| **YAML → OWL (optional)** | **`python -m linkml_owl.dumpers.owl_dumper`** (same as **`linkml-data2owl`**) — writes **`icd10cm_from_linkml.owl`**. This file is **separate** from the ROBOT **`icd10cm.owl`**; the Makefile does **not** overwrite the component with the LinkML dump. |
+| **YAML → OWL** | **`python -m linkml_owl.dumpers.owl_dumper`** (same as **`linkml-data2owl`**) — writes **`icd10cm_from_linkml.owl`**. Part of **`build-release`** / **`just build`**. Separate from the ROBOT **`icd10cm.owl`**; the Makefile does not overwrite the component with the LinkML dump. |
 
 ### Make / just targets
 
-- **`make build`** — Part A + Part B only → **`icd10cm.owl`**. No YAML or LinkML OWL.
-- **`make build-release`** — `build`, then transform → validate → **`icd10cm_from_linkml.owl`**. Uses **`UV_RUN`** (default **`uv run --no-sync`**) to avoid unnecessary venv sync issues.
-- **`just build`** — `mirror` → `component` → `transform` → `validate` → `data2owl` → produces **`icd10cm.yaml`**, **`tmp/icd10cm-component.owl`**, and **`icd10cm_from_linkml.owl`**. It does **not** copy the component to root **`icd10cm.owl`**; use **`just release <tag>`** if you need that copy plus release assets (see justfile).
+- **`make build`** — Part A + Part B only → **`icd10cm.owl`** (ROBOT only).
+- **`make build-release`** — **`build`**, then transform → validate → **`icd10cm_from_linkml.owl`**. Uses **`UV_RUN`** (default **`uv run --no-sync`**) to avoid unnecessary venv sync issues.
+- **`just build`** — `mirror` → `component` → `transform` → `validate` → `data2owl` → **`icd10cm.yaml`**, **`tmp/icd10cm-component.owl`**, **`icd10cm_from_linkml.owl`**. Does not copy the component to root **`icd10cm.owl`**; use **`just release <tag>`** for that plus release assets (see justfile).
 
 ### CI / releases
 
-GitHub Actions **`build-release`** uploads **`icd10cm.yaml`**, **`icd10cm.owl`** (ROBOT), and **`icd10cm_from_linkml.owl`** when the workflow runs a full build.
+GitHub Actions **`build-release`**: **`icd10cm.yaml`**, **`icd10cm.owl`** (ROBOT), **`icd10cm_from_linkml.owl`**.
 
 ---
 
