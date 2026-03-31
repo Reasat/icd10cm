@@ -116,9 +116,9 @@ validate:
 
 # ── OWL export ────────────────────────────────────────────────────────────────
 
-# Convert schema-conformant YAML → OWL using linkml-data2owl
+# Convert schema-conformant YAML → OWL (linkml-owl OWLDumper CLI)
 data2owl:
-    uv run linkml-data2owl \
+    uv run python -m linkml_owl.dumpers.owl_dumper \
         --schema {{ SCHEMA }} \
         -o {{ OWL_OUT }} \
         {{ YAML_OUT }}

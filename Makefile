@@ -91,7 +91,7 @@ build: $(OUTPUT_OWL)
 build-release: build
 	uv run python scripts/transform.py --input $(OUTPUT_OWL) --schema $(SCHEMA) --output $(YAML_OUT)
 	uv run linkml-validate --schema $(SCHEMA) --target-class OntologyDocument $(YAML_OUT)
-	uv run linkml-data2owl --schema $(SCHEMA) -o $(OUTPUT_OWL) $(YAML_OUT)
+	uv run python -m linkml_owl.dumpers.owl_dumper --schema $(SCHEMA) -o $(OUTPUT_OWL) $(YAML_OUT)
 	@echo "Build complete: $(YAML_OUT) and $(OUTPUT_OWL)"
 
 # ── Utilities ─────────────────────────────────────────────────────────────────
