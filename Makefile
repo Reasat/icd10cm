@@ -18,8 +18,10 @@ BP_ENV      := .bioportal.env
 ONTOLOGY_IRI := https://github.com/monarch-initiative/icd10cm/releases/latest/download/icd10cm.owl
 URIBASE     := http://purl.obolibrary.org/obo
 TODAY       := $(shell date +%Y-%m-%d)
+YAML_OUT    := icd10cm.yaml
+SCHEMA      := linkml/mondo_source_schema.yaml
 
-.PHONY: all build clean env test
+.PHONY: all build build-release clean env test
 all: build
 
 # ── Directory ─────────────────────────────────────────────────────────────────
@@ -85,12 +87,19 @@ $(OUTPUT_OWL): $(SIG_TXT) $(MIRROR_OWL) \
 build: $(OUTPUT_OWL)
 	@echo "Build complete: $(OUTPUT_OWL)"
 
+# ROBOT component + LinkML transform + validate + data2owl (same pipeline as `just build`)
+build-release: build
+	uv run python scripts/transform.py --input $(OUTPUT_OWL) --schema $(SCHEMA) --output $(YAML_OUT)
+	uv run linkml-validate --schema $(SCHEMA) --target-class OntologyDocument $(YAML_OUT)
+	uv run linkml-data2owl --schema $(SCHEMA) -o $(OUTPUT_OWL) $(YAML_OUT)
+	@echo "Build complete: $(YAML_OUT) and $(OUTPUT_OWL)"
+
 # ── Utilities ─────────────────────────────────────────────────────────────────
 env: $(BP_ENV)
 	@cat $(BP_ENV)
 
 clean:
-	rm -f $(OUTPUT_OWL) $(TMP_OWL) $(BP_ENV)
+	rm -f $(OUTPUT_OWL) $(YAML_OUT) $(TMP_OWL) $(BP_ENV)
 	rm -rf $(TMP_DIR)
 
 # ── Tests (require ROBOT and rdflib: pip install -r requirements.txt) ─────────
