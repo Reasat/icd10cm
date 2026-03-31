@@ -5,7 +5,7 @@ description: >-
   synonyms, hierarchy. Extended slots align with predicates allowed to remain on
   ICD10CM component OWL after ROBOT (see config/properties.txt); populate only what
   your transform exports.
-version: 0.3.0
+version: 0.3.1
 
 prefixes:
   linkml:     https://w3id.org/linkml/
@@ -36,7 +36,9 @@ classes:
     description: >-
       Top-level container representing a single ontology source release.
       Slots mirror owl:Ontology annotations on the component file (rdfs:label, versionInfo,
-      comments, source, dcterms:title, ontology-level synonyms).
+      comments, source, dcterms:title). Ontology-level oboInOwl:hasExactSynonym (e.g. nested
+      synonym-type annotations) is not exported: linkml-owl can emit incomplete axiom
+      reification that ROBOT cannot parse.
     tree_root: true
     class_uri: owl:Ontology
     slots:
@@ -46,7 +48,6 @@ classes:
       - comments
       - sources
       - descriptions
-      - exact_synonyms
       - terms
 
   OntologyTerm:
