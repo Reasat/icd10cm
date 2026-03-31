@@ -74,6 +74,7 @@ jobs:
           files: |
             icd10cm.yaml
             icd10cm.owl
+            icd10cm_from_linkml.owl
           generate_release_notes: true
           draft: false
         env:
