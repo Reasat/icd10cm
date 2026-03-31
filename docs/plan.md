@@ -20,7 +20,7 @@ The first two steps are separate invocations. The remaining ROBOT steps (Remove 
 
 | Step | Command / action |
 |------|------------------|
-| **Resolve version** | `python3 scripts/get_latest_bioportal.py` — reads `BIOPORTAL_API_KEY` from `.env` or environment; optionally **`BIOPORTAL_SUBMISSION_ID`** pins a specific submission (no “latest” query). Otherwise queries BioPortal submissions API, picks the one with the latest `released` date, writes `DOWNLOAD_URL`, `SUBMISSION_ID`, and `VERSION_IRI` to `.bioportal.env`. See `docs/get_latest_version.md` for latest download url logic. |
+| **Resolve version** | `python3 scripts/get_latest_bioportal.py` — reads `BIOPORTAL_API_KEY` from `.env` or environment; queries BioPortal submissions API, picks the submission with the latest `released` date, writes `DOWNLOAD_URL`, `SUBMISSION_ID`, and `VERSION_IRI` to `.bioportal.env`. (Pinning a specific submission via env var is **not** implemented in the script yet.) See `docs/get_latest_version.md` for download URL logic. |
 | **Download** | `wget "$DOWNLOAD_URL" -O .icd10cm.tmp.owl` — fetches raw OWL from BioPortal using the resolved URL. |
 | **Remove imports** | `robot remove -i .icd10cm.tmp.owl --select imports` — inlines the imported ontology (e.g. SKOS) then drops the import statement, making the file self-contained. |
 | **Remove properties** | `robot remove -T config/remove_properties.txt` — drops coding-instruction and external metadata properties not needed for Mondo (e.g. `EXCLUDES1`, `NOTE`, `hasSTY`). |
@@ -40,7 +40,7 @@ Reproduces what used to run in mondo-ingest at [line 198](https://github.com/mon
 | Entry point | ROBOT output path | `icd10cm.owl` at repo root |
 |-------------|-------------------|-----------------------------|
 | **Makefile** (`make build`) | Written **directly** to `icd10cm.owl` | Same file (one `robot` chain) |
-| **justfile** (`just component`) | `tmp/icd10cm-component.owl` | `just publish-owl` runs `cp tmp/icd10cm-component.owl icd10cm.owl` |
+| **justfile** (`just component`) | `tmp/icd10cm-component.owl` | For a root `icd10cm.owl` copy, use **`just release`** (copies component to `icd10cm.owl` before uploading assets) or copy manually. |
 
 The **canonical released OWL** is always the **ROBOT component** (not an OWL regenerated from YAML by LinkML). See **Part C** below.
 
@@ -72,18 +72,32 @@ Release **`icd10cm.owl`** via GitHub Releases:
 
 ---
 
-## Part C: LinkML YAML 
+## Part C: LinkML (schema, YAML, validation, optional LinkML OWL)
 
+This repo maintains **`linkml/mondo_source_schema.yaml`**, **`scripts/transform.py`**, and the generated **`icd10cm.yaml`**. Together they provide a **structured, validateable projection** of the ROBOT component graph for tooling and CI. They are **not** the canonical source for what Mondo ingests: the **released artifact** remains **`icd10cm.owl`** from Part B (ROBOT).
 
-This repo also maintains **`linkml/mondo_source_schema.yaml`**, **`scripts/transform.py`**, and **`icd10cm.yaml`**:
+### Role of the data
 
-I need some clarification on what this file is data format is suuposed to do. Based on the use case **`linkml/mondo_source_schema.yaml`**, **`scripts/transform.py`** will change.
+- **`icd10cm.yaml`** — Lossless enough for **term-level** fields the transform exports (labels, definitions, synonyms, hierarchy, and other slots aligned with `config/properties.txt`). **Ontology header** fields on `owl:Ontology` are also exported (see schema). A full **byte-for-byte** match between ROBOT OWL and **`icd10cm_from_linkml.owl`** is **not** guaranteed (e.g. RDF language tags on literals, axiom surface form, linkml-owl emission).
+- **`mondo_source_schema.yaml`** — LinkML schema (currently **v0.3.x**): documents **`OntologyDocument`** (ontology IRI metadata + `terms`) and **`OntologyTerm`**. Document-level slots include **`title`** (`rdfs:label`), optional **`dcterms_title`**, **`version`** (`owl:versionInfo`), and optional **`comments`**, **`sources`**, **`descriptions`**, **`exact_synonyms`** on the ontology node; term-level slots mirror the allowlisted predicates where **`transform.py`** fills them.
 
-- **`transform.py`** reads the **ROBOT component** OWL and writes **schema-conformant YAML** (`icd10cm.yaml`).
-- **`linkml-validate`** checks that YAML against the schema (CI / `just validate`).
-- **`just data2owl`** (optional) can generate OWL from YAML via `linkml-data2owl` for experiments; **it is not** how the released **`icd10cm.owl`** is produced.
+### Commands
 
-**`just build`** runs: mirror → component → transform → validate → **`publish-owl`** (copy component to `icd10cm.owl`). The published OWL matches **`tmp/icd10cm-component.owl`** byte-for-byte when using the justfile.
+| Step | What runs |
+|------|-----------|
+| **Serialize** | **`scripts/transform.py`** — input: ROBOT component OWL (`icd10cm.owl` or `tmp/icd10cm-component.owl`); output: **`icd10cm.yaml`**. |
+| **Validate** | **`python -m linkml.validator.cli`** — `linkml-validate` as a console script can fail under `uv run` on some systems; the Makefile/justfile call the module directly. Target class: **`OntologyDocument`**. |
+| **YAML → OWL (optional)** | **`python -m linkml_owl.dumpers.owl_dumper`** (same as **`linkml-data2owl`**) — writes **`icd10cm_from_linkml.owl`**. This file is **separate** from the ROBOT **`icd10cm.owl`**; the Makefile does **not** overwrite the component with the LinkML dump. |
+
+### Make / just targets
+
+- **`make build`** — Part A + Part B only → **`icd10cm.owl`**. No YAML or LinkML OWL.
+- **`make build-release`** — `build`, then transform → validate → **`icd10cm_from_linkml.owl`**. Uses **`UV_RUN`** (default **`uv run --no-sync`**) to avoid unnecessary venv sync issues.
+- **`just build`** — `mirror` → `component` → `transform` → `validate` → `data2owl` → produces **`icd10cm.yaml`**, **`tmp/icd10cm-component.owl`**, and **`icd10cm_from_linkml.owl`**. It does **not** copy the component to root **`icd10cm.owl`**; use **`just release <tag>`** if you need that copy plus release assets (see justfile).
+
+### CI / releases
+
+GitHub Actions **`build-release`** uploads **`icd10cm.yaml`**, **`icd10cm.owl`** (ROBOT), and **`icd10cm_from_linkml.owl`** when the workflow runs a full build.
 
 ---
 
