@@ -112,11 +112,8 @@ def extract_ontology_document(g: Graph) -> dict:
         if descriptions:
             doc["descriptions"] = descriptions
 
-        ont_syns = [
-            str(o) for o in g.objects(ont, OBOINOWL.hasExactSynonym) if isinstance(o, Literal)
-        ]
-        if ont_syns:
-            doc["exact_synonyms"] = sorted(set(ont_syns))
+        # Do not export ontology-level hasExactSynonym into YAML: linkml-owl → OWL can emit
+        # RDF triples (owl:annotated*) that OWL API / ROBOT reject as incomplete axioms.
 
         break
 
