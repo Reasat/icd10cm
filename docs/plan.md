@@ -101,6 +101,105 @@ GitHub Actions **`build-release`**: **`icd10cm.yaml`**, **`icd10cm.owl`** (ROBOT
 
 ---
 
+## Verification: pinned builds and mondo-ingest (not in the Makefile)
+
+**Default `make build`** may resolve **latest** BioPortal submission and is **not** the strict verification run. **Release confidence** uses **pinned** inputs (same submission / `VERSION_IRI` / `TODAY` as the reference) and explicit **`robot diff`** steps below—same spirit as [icd10who `docs/plan.md` — Verification](https://github.com/monarch-initiative/icd10who/blob/main/docs/plan.md#verification-pinned-builds-and-mondo-ingest-not-in-the-makefile).
+
+**Why not in the Makefile:** Keeps the default build graph simple; avoids checking in reference OWLs.
+
+**Full verification pass:** After **A** and **B**, run **C**, **D**, **E**, and **F** — **all are required** for a full gate. **C** and **D** compare this repo’s outputs to a downloaded **mondo-ingest** release OWL. **E** compares ROBOT vs LinkML OWL from **one** **`make build-release`**. **F** compares this repo’s ROBOT OWL to **`components/icd10cm.owl`** from a **mondo-ingest** checkout using the **same** pinned **`ICD10CM`** URL as **B** (required whenever you perform full verification and have that clone).
+
+### A. Download a reference `icd10cm.owl` from mondo-ingest (save under `tmp/`)
+
+[mondo-ingest releases](https://github.com/monarch-initiative/mondo-ingest/releases) ship dated tags with asset **`icd10cm.owl`**. Download into **`tmp/`**:
+
+```bash
+mkdir -p tmp
+TAG=v2025-11-06
+curl -fsSL -o "tmp/mondo-ingest_icd10cm_${TAG}.owl" \
+  "https://github.com/monarch-initiative/mondo-ingest/releases/download/${TAG}/icd10cm.owl"
+```
+
+URL pattern:
+
+`https://github.com/monarch-initiative/mondo-ingest/releases/download/<TAG>/icd10cm.owl`
+
+### B. Create a local “release” build to compare (pinned BioPortal + optional `TODAY`)
+
+**Goal:** Produce **`icd10cm.owl`** and **`icd10cm_from_linkml.owl`** from **one** run so both match the **same** upstream mirror (same BioPortal submission / `VERSION_IRI`) and **`TODAY`** if set.
+
+1. Pin **`scripts/get_latest_bioportal.py`** output (or a fixed `.bioportal.env`) so **`tmp/mirror-icd10cm.owl`** matches what mondo-ingest used for **A** (or accept documented drift if you cannot recover the exact submission).
+2. Set **`TODAY`** to match the reference mondo-ingest build date **if** you want to trim **version-IRI-only** noise in diffs.
+3. Use the **same** **`obolibrary/odkfull`** tag as mondo-ingest for **B** and **F** so diffs are not dominated by serializer skew.
+
+**ROBOT + LinkML:**
+
+```bash
+make clean
+TODAY=2025-11-08 make build-release
+```
+
+**ROBOT only:**
+
+```bash
+make clean
+TODAY=2025-11-08 make build
+```
+
+### C. Compare local ROBOT OWL vs the downloaded mondo-ingest release
+
+After **B**:
+
+```bash
+robot diff \
+  --left icd10cm.owl \
+  --right "tmp/mondo-ingest_icd10cm_${TAG}.owl" \
+  -o tmp/diff-robot-vs-mondo-ingest.md
+```
+
+Replace **`${TAG}`** with the tag from **A**.
+
+### D. Compare local LinkML OWL vs the same mondo-ingest reference
+
+```bash
+robot diff \
+  --left icd10cm_from_linkml.owl \
+  --right "tmp/mondo-ingest_icd10cm_${TAG}.owl" \
+  -o tmp/diff-linkml-owl-vs-mondo-ingest.md
+```
+
+Requires **`make build-release`**.
+
+### E. Compare ROBOT vs LinkML OWL locally (same build) — required
+
+Both files from **one** **`make build-release`** run (same inputs as **B**):
+
+```bash
+robot diff \
+  --left icd10cm.owl \
+  --right icd10cm_from_linkml.owl \
+  -o tmp/diff-robot-vs-linkml.md
+```
+
+Expect **differences**: [Part C](#part-c-linkml-schema-yaml-validation-linkml-owl) notes that a **byte-for-byte** match is **not** guaranteed.
+
+### F. Compare against a locally built mondo-ingest `components/icd10cm.owl` — required
+
+Build **mondo-ingest** with **`ICD10CM`** set to the **same** pinned **`icd10cm.owl`** URL as this repo’s build (e.g. **GitHub release** of this repo, or **`file://`** to your local **`icd10cm.owl`** for a strict check), then:
+
+```bash
+robot diff \
+  --left icd10cm.owl \
+  --right path/to/mondo-ingest/src/ontology/components/icd10cm.owl \
+  -o tmp/diff-vs-local-mondo-ingest.md
+```
+
+Replace **`path/to/mondo-ingest`** with your clone. Align **`TODAY`** with that build when you want to reduce version-IRI-only noise.
+
+**After mondo-ingest cutover:** **`ICD10CM`** in mondo-ingest is the **published** URL from this repo; **F** still validates that **merge + normalize** in mondo-ingest matches your released **`icd10cm.owl`** when inputs are aligned.
+
+---
+
 ## Changes in mondo-ingest
 
 Once this repo publishes, mondo-ingest makes the following changes:
