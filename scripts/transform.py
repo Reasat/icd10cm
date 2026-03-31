@@ -82,19 +82,49 @@ def _uri_or_literal_values(g: Graph, subj: URIRef, pred) -> list[str]:
 
 # ── Graph traversal ───────────────────────────────────────────────────────────
 
-def extract_ontology_metadata(g: Graph) -> tuple[str, str]:
-    """Return (title, version) from the owl:Ontology node."""
-    title = "ICD10CM"
-    version = "unknown"
+def extract_ontology_document(g: Graph) -> dict:
+    """
+    Return document-level fields from the first owl:Ontology node (mirrors component OWL header).
+    """
+    doc: dict = {}
     for ont in g.subjects(RDF.type, OWL.Ontology):
+        if not isinstance(ont, URIRef):
+            continue
         lbl = g.value(ont, RDFS.label)
         if lbl:
-            title = str(lbl)
+            doc["title"] = str(lbl)
         ver = g.value(ont, OWL.versionInfo)
         if ver:
-            version = str(ver)
+            doc["version"] = str(ver)
+        dct = g.value(ont, DCTERMS.title)
+        if dct:
+            doc["dcterms_title"] = str(dct)
+
+        comments = _literal_values(g, ont, RDFS.comment)
+        if comments:
+            doc["comments"] = comments
+
+        sources = _uri_or_literal_values(g, ont, OBOINOWL.source)
+        if sources:
+            doc["sources"] = sources
+
+        descriptions = _uri_or_literal_values(g, ont, DCTERMS.description)
+        if descriptions:
+            doc["descriptions"] = descriptions
+
+        ont_syns = [
+            str(o) for o in g.objects(ont, OBOINOWL.hasExactSynonym) if isinstance(o, Literal)
+        ]
+        if ont_syns:
+            doc["exact_synonyms"] = sorted(set(ont_syns))
+
         break
-    return title, version
+
+    if "title" not in doc:
+        doc["title"] = "ICD10CM"
+    if "version" not in doc:
+        doc["version"] = "unknown"
+    return doc
 
 
 def extract_terms(g: Graph) -> list[dict]:
@@ -246,15 +276,11 @@ def transform(input_path: Path, output_path: Path) -> None:
     g = Graph()
     g.parse(str(input_path))
 
-    title, version = extract_ontology_metadata(g)
+    doc = extract_ontology_document(g)
     terms = extract_terms(g)
     print(f"Extracted {len(terms)} ICD10CM terms", file=sys.stderr)
 
-    doc = {
-        "title": title,
-        "version": version,
-        "terms": terms,
-    }
+    doc["terms"] = terms
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as fh:
