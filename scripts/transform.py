@@ -24,20 +24,29 @@ from pathlib import Path
 
 import yaml
 from rdflib import OWL, RDF, RDFS, Graph, Literal, URIRef
-from rdflib.namespace import Namespace
+from rdflib.namespace import DCTERMS, Namespace, SKOS
 
 # ── Namespaces ────────────────────────────────────────────────────────────────
 
 OBOINOWL = Namespace("http://www.geneontology.org/formats/oboInOwl#")
 OBO = Namespace("http://purl.obolibrary.org/obo/")
+MONDO = Namespace("http://purl.obolibrary.org/obo/mondo#")
 
 ICD10CM_IRI_PREFIX = "http://purl.bioontology.org/ontology/ICD10CM/"
 ICD10CM_CURIE_PREFIX = "ICD10CM:"
 
 # Component OWL uses Mondo/obo property IRIs (after rename)
 DEFINITION = OBO["IAO_0000115"]
+OMO_0003012 = OBO["OMO_0003012"]
 OWL_THING = OWL.Thing
 OWL_DEPRECATED_PROP = OWL.deprecated
+
+# RO / BFO object properties (allowed on component per config/properties.txt)
+RO_0004001 = OBO["RO_0004001"]
+RO_0004003 = OBO["RO_0004003"]
+RO_0004004 = OBO["RO_0004004"]
+BFO_0000050 = OBO["BFO_0000050"]
+BFO_0000051 = OBO["BFO_0000051"]
 
 
 # ── IRI helpers ───────────────────────────────────────────────────────────────
@@ -51,6 +60,24 @@ def iri_to_curie(iri: str) -> str:
     if is_icd10cm_iri(iri):
         return ICD10CM_CURIE_PREFIX + iri[len(ICD10CM_IRI_PREFIX) :]
     return iri
+
+
+def _literal_values(g: Graph, subj: URIRef, pred) -> list[str]:
+    out = [str(o) for o in g.objects(subj, pred) if isinstance(o, Literal)]
+    return sorted(set(out)) if out else []
+
+
+def _uri_values(g: Graph, subj: URIRef, pred) -> list[str]:
+    out = [str(o) for o in g.objects(subj, pred) if isinstance(o, URIRef)]
+    return sorted(out) if out else []
+
+
+def _uri_or_literal_values(g: Graph, subj: URIRef, pred) -> list[str]:
+    out: list[str] = []
+    for o in g.objects(subj, pred):
+        if isinstance(o, (Literal, URIRef)):
+            out.append(str(o))
+    return sorted(set(out)) if out else []
 
 
 # ── Graph traversal ───────────────────────────────────────────────────────────
@@ -133,6 +160,79 @@ def extract_terms(g: Graph) -> list[dict]:
             term["is_root"] = True
         else:
             term["parents"] = parent_curies
+
+        # ── Optional synonym / xref / annotation slots (align with config/properties.txt) ─
+        for key, pred in (
+            ("related_synonyms", OBOINOWL.hasRelatedSynonym),
+            ("narrow_synonyms", OBOINOWL.hasNarrowSynonym),
+            ("broad_synonyms", OBOINOWL.hasBroadSynonym),
+        ):
+            vals = _literal_values(g, subj, pred)
+            if vals:
+                term[key] = vals
+
+        obo_close = _uri_or_literal_values(g, subj, OBOINOWL.hasCloseSynonym)
+        if obo_close:
+            term["obo_has_close_synonym"] = obo_close
+
+        for key, pred in (
+            ("database_cross_references", OBOINOWL.hasDbXref),
+            ("comments", RDFS.comment),
+            ("descriptions", DCTERMS.description),
+            ("sources", OBOINOWL.source),
+        ):
+            vals = _uri_or_literal_values(g, subj, pred)
+            if vals:
+                term[key] = vals
+
+        see_also = _uri_or_literal_values(g, subj, RDFS.seeAlso)
+        if see_also:
+            term["see_also"] = see_also
+
+        for key, pred in (
+            ("in_subsets", OBOINOWL.inSubset),
+            ("synonym_types", OBOINOWL.hasSynonymType),
+        ):
+            vals = _uri_values(g, subj, pred)
+            if vals:
+                term[key] = vals
+
+        for key, pred in (
+            ("skos_exact_match", SKOS.exactMatch),
+            ("skos_broad_match", SKOS.broadMatch),
+            ("skos_narrow_match", SKOS.narrowMatch),
+            ("skos_related_match", SKOS.relatedMatch),
+            ("close_synonyms", SKOS.closeMatch),
+        ):
+            vals = _uri_or_literal_values(g, subj, pred)
+            if vals:
+                term[key] = vals
+
+        for key, pred in (
+            ("mondo_generated", MONDO.GENERATED),
+            ("mondo_generated_from_label", MONDO.GENERATED_FROM_LABEL),
+            ("mondo_omim_included", MONDO.omim_included),
+            ("mondo_omim_formerly", MONDO.omim_formerly),
+            ("mondo_abbreviation", MONDO.ABBREVIATION),
+        ):
+            vals = _uri_or_literal_values(g, subj, pred)
+            if vals:
+                term[key] = vals
+
+        omo = _uri_or_literal_values(g, subj, OMO_0003012)
+        if omo:
+            term["omo_0003012"] = omo
+
+        for key, pred in (
+            ("ro_0004001", RO_0004001),
+            ("ro_0004003", RO_0004003),
+            ("ro_0004004", RO_0004004),
+            ("bfo_0000050", BFO_0000050),
+            ("bfo_0000051", BFO_0000051),
+        ):
+            vals = _uri_values(g, subj, pred)
+            if vals:
+                term[key] = vals
 
         terms.append(term)
 
