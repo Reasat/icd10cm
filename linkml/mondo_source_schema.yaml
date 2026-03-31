@@ -1,11 +1,11 @@
 id: https://w3id.org/monarch-initiative/mondo-source-schema
 name: mondo_source_schema
 description: >-
-  Minimal LinkML schema for a Mondo-ready ontology source.
-  Captures only the elements Mondo uses: labels, definitions, synonyms,
-  and hierarchical parentage. Used to validate and export each source as
-  a schema-conformant YAML + OWL artefact.
-version: 0.1.0
+  LinkML schema for a Mondo-ready ontology source. Core fields: labels, definitions,
+  synonyms, hierarchy. Extended slots align with predicates allowed to remain on
+  ICD10CM component OWL after ROBOT (see config/properties.txt); populate only what
+  your transform exports.
+version: 0.2.0
 
 prefixes:
   linkml:     https://w3id.org/linkml/
@@ -16,6 +16,9 @@ prefixes:
   obo:        http://purl.obolibrary.org/obo/
   oboInOwl:   http://www.geneontology.org/formats/oboInOwl#
   owl:        http://www.w3.org/2002/07/owl#
+  RO:         http://purl.obolibrary.org/obo/RO_
+  BFO:        http://purl.obolibrary.org/obo/BFO_
+  MONDO:      http://purl.obolibrary.org/obo/mondo#
   ICD10CM:    http://purl.bioontology.org/ontology/ICD10CM/
 
 imports:
@@ -41,8 +44,7 @@ classes:
 
   OntologyTerm:
     description: >-
-      A single class / concept from the source ontology, containing only
-      the elements Mondo requires for ingest.
+      A single class / concept from the source ontology.
     class_uri: owl:Class
     slots:
       - id
@@ -53,6 +55,29 @@ classes:
       - narrow_synonyms
       - broad_synonyms
       - close_synonyms
+      - obo_has_close_synonym
+      - database_cross_references
+      - comments
+      - see_also
+      - descriptions
+      - in_subsets
+      - sources
+      - synonym_types
+      - skos_exact_match
+      - skos_broad_match
+      - skos_narrow_match
+      - skos_related_match
+      - mondo_generated
+      - mondo_generated_from_label
+      - mondo_omim_included
+      - mondo_omim_formerly
+      - mondo_abbreviation
+      - omo_0003012
+      - ro_0004001
+      - ro_0004003
+      - ro_0004004
+      - bfo_0000050
+      - bfo_0000051
       - parents
       - is_root
       - deprecated
@@ -107,7 +132,7 @@ slots:
     annotations:
       owl: AnnotationAssertion
 
-  # -- Synonyms --
+  # -- Synonyms (oboInOwl) --
 
   exact_synonyms:
     description: Exact-match synonyms (oboInOwl:hasExactSynonym).
@@ -139,11 +164,185 @@ slots:
       owl: AnnotationAssertion
 
   close_synonyms:
-    description: >-
-      Close synonyms (skos:closeMatch). oboInOwl has no dedicated close-synonym
-      property, so skos:closeMatch is used as the nearest equivalent.
+    description: skos:closeMatch (mapping / close match).
     slot_uri: skos:closeMatch
     multivalued: true
+    range: uriorcurie
+    annotations:
+      owl: AnnotationAssertion
+
+  obo_has_close_synonym:
+    description: oboInOwl:hasCloseSynonym (distinct from skos:closeMatch).
+    slot_uri: oboInOwl:hasCloseSynonym
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  # -- Cross-refs and extra annotations (config/properties.txt) --
+
+  database_cross_references:
+    description: oboInOwl:hasDbXref.
+    slot_uri: oboInOwl:hasDbXref
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  comments:
+    description: rdfs:comment.
+    slot_uri: rdfs:comment
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  see_also:
+    description: rdfs:seeAlso (IRIs or literals as serialized strings).
+    slot_uri: rdfs:seeAlso
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  descriptions:
+    description: dcterms:description (distinct from IAO definition).
+    slot_uri: dcterms:description
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  in_subsets:
+    description: oboInOwl:inSubset.
+    slot_uri: oboInOwl:inSubset
+    multivalued: true
+    range: uriorcurie
+    annotations:
+      owl: AnnotationAssertion
+
+  sources:
+    description: oboInOwl:source.
+    slot_uri: oboInOwl:source
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  synonym_types:
+    description: oboInOwl:hasSynonymType.
+    slot_uri: oboInOwl:hasSynonymType
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  skos_exact_match:
+    description: skos:exactMatch.
+    slot_uri: skos:exactMatch
+    multivalued: true
+    range: uriorcurie
+    annotations:
+      owl: AnnotationAssertion
+
+  skos_broad_match:
+    description: skos:broadMatch.
+    slot_uri: skos:broadMatch
+    multivalued: true
+    range: uriorcurie
+    annotations:
+      owl: AnnotationAssertion
+
+  skos_narrow_match:
+    description: skos:narrowMatch.
+    slot_uri: skos:narrowMatch
+    multivalued: true
+    range: uriorcurie
+    annotations:
+      owl: AnnotationAssertion
+
+  skos_related_match:
+    description: skos:relatedMatch.
+    slot_uri: skos:relatedMatch
+    multivalued: true
+    range: uriorcurie
+    annotations:
+      owl: AnnotationAssertion
+
+  mondo_generated:
+    description: mondo:GENERATED.
+    slot_uri: MONDO:GENERATED
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  mondo_generated_from_label:
+    description: mondo:GENERATED_FROM_LABEL.
+    slot_uri: MONDO:GENERATED_FROM_LABEL
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  mondo_omim_included:
+    description: mondo:omim_included.
+    slot_uri: MONDO:omim_included
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  mondo_omim_formerly:
+    description: mondo:omim_formerly.
+    slot_uri: MONDO:omim_formerly
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  mondo_abbreviation:
+    description: mondo:ABBREVIATION.
+    slot_uri: MONDO:ABBREVIATION
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  omo_0003012:
+    description: OMO:0003012 (ontology metadata slot used on some terms).
+    slot_uri: obo:OMO_0003012
+    multivalued: true
+    annotations:
+      owl: AnnotationAssertion
+
+  # -- Object properties (RO / BFO) allowed on component classes --
+
+  ro_0004001:
+    description: RO:0004001 object property targets.
+    slot_uri: RO:0004001
+    multivalued: true
+    range: uriorcurie
+    annotations:
+      owl: AnnotationAssertion
+
+  ro_0004003:
+    description: RO:0004003 object property targets.
+    slot_uri: RO:0004003
+    multivalued: true
+    range: uriorcurie
+    annotations:
+      owl: AnnotationAssertion
+
+  ro_0004004:
+    description: RO:0004004 object property targets.
+    slot_uri: RO:0004004
+    multivalued: true
+    range: uriorcurie
+    annotations:
+      owl: AnnotationAssertion
+
+  bfo_0000050:
+    description: BFO:0000050 object property targets.
+    slot_uri: BFO:0000050
+    multivalued: true
+    range: uriorcurie
+    annotations:
+      owl: AnnotationAssertion
+
+  bfo_0000051:
+    description: BFO:0000051 object property targets.
+    slot_uri: BFO:0000051
+    multivalued: true
+    range: uriorcurie
     annotations:
       owl: AnnotationAssertion
 
@@ -151,7 +350,7 @@ slots:
 
   parents:
     description: >-
-      Direct is-a parents. Required unless is_root is true.
+      Direct is-a parents (ICD10CM CURIEs). Non-ICD10CM subclass targets are not listed.
     slot_uri: rdfs:subClassOf
     range: OntologyTerm
     multivalued: true
@@ -160,7 +359,7 @@ slots:
 
   is_root:
     description: >-
-      True when this term has no named parents and sits at the top of
+      True when this term has no named ICD10CM parents and sits at the top of
       the hierarchy. Relaxes the parents requirement.
     range: boolean
     ifabsent: "false"
