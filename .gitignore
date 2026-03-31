@@ -1,5 +1,6 @@
 # Build outputs and intermediates
 icd10cm.owl
+icd10cm_from_linkml.owl
 icd10cm.yaml
 tmp/
 .bioportal.env
