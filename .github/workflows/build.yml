@@ -1,0 +1,32 @@
+name: Build
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "justfile"
+      - "config/**"
+      - "linkml/**"
+      - "scripts/**"
+      - "sparql/**"
+      - "tests/**"
+      - "src/**"
+      - "pyproject.toml"
+      - "uv.lock"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run tests (ROBOT + unittest)
+        run: |
+          docker run --rm \
+            -e ROBOT_PLUGINS_DIRECTORY=/tools/robot-plugins \
+            -v "$PWD:/work" \
+            -w /work \
+            obolibrary/odkfull:v1.6 \
+            bash -c "pip3 install --break-system-packages uv && uv sync && uv run python -m unittest discover -s tests -p 'test_*.py' -v"

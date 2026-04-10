@@ -5,17 +5,22 @@ This document explains each step of the build pipeline that produces `icd10cm.ow
 The pipeline has two parts:
 
 - **Part A (mirror build):** Downloads and cleans the raw BioPortal OWL → `tmp/mirror-icd10cm.owl`
-- **Part B (component build):** Filters to relevant terms, remaps and strips properties → `icd10cm.owl`
+- **Part B (component build):** Filters to relevant terms, remaps and strips properties → `tmp/icd10cm-component.owl`, then copied to `icd10cm.owl` for release
 
 ---
 
 ## Part A: Mirror build → `tmp/mirror-icd10cm.owl`
 
-### A1. Resolve BioPortal submission
+### A1. Resolve and download (Mondo skill: acquire)
 
-**Command:** `python3 scripts/get_latest_bioportal.py [--apikey KEY]`
+**Commands:**
 
-Queries the BioPortal submissions API for ICD10CM, selects the submission with the latest `released` date, and writes three variables to `.bioportal.env`:
+- **`uv run python scripts/resolve_version.py > .bioportal.env`** — resolve only (no download). Optional: `just resolve`.
+- **`uv run python scripts/acquire.py`** or **`just acquire`** — resolves the latest submission (unless `BIOPORTAL_SUBMISSION_ID` is set), writes `.bioportal.env`, and downloads the raw OWL to **`tmp/.icd10cm.tmp.owl`**.
+
+Set `BIOPORTAL_API_KEY` via **`env/.env`** (copy from `env/.env.example`) or the environment (CI uses the repository secret of the same name).
+
+The `.bioportal.env` file contains:
 
 - `DOWNLOAD_URL` — the BioPortal download URL for that submission
 - `SUBMISSION_ID` — the numeric submission ID
@@ -23,17 +28,9 @@ Queries the BioPortal submissions API for ICD10CM, selects the submission with t
 
 ---
 
-### A2. Download
+### A2. Remove imports
 
-**Command:** `wget "$DOWNLOAD_URL" -O .icd10cm.tmp.owl`
-
-Fetches the raw OWL file from BioPortal using the resolved URL.
-
----
-
-### A3. Remove imports
-
-**Command:** `robot remove -i .icd10cm.tmp.owl --select imports`
+**Command:** `robot remove -i tmp/.icd10cm.tmp.owl --select imports`
 
 ROBOT does not simply delete the `owl:imports` line. It makes the ontology **self-contained** by:
 
@@ -175,8 +172,10 @@ Final output: `icd10cm.owl` — Mondo's ICD10CM source, published via GitHub Rel
 
 | Step | Input | Output | Main effect |
 |------|-------|--------|-------------|
-| A1. Resolve | BioPortal API | `.bioportal.env` | Write download URL and version IRI. |
-| A2. Download | `.bioportal.env` | `.icd10cm.tmp.owl` | Fetch raw OWL from BioPortal. |
-| A3–A6. ROBOT chain | `.icd10cm.tmp.owl` | `tmp/mirror-icd10cm.owl` | Remove imports, drop properties, annotate, add dc:source. |
+| A1. Acquire | BioPortal API | `.bioportal.env`, `tmp/.icd10cm.tmp.owl` | Resolve URL + fetch raw OWL (`scripts/acquire.py`). |
+| A2–A6. ROBOT chain | `tmp/.icd10cm.tmp.owl` | `tmp/mirror-icd10cm.owl` | Remove imports, drop properties, annotate, add dc:source. |
 | B1. Signature | `tmp/mirror-icd10cm.owl` | `tmp/icd10cm_relevant_signature.txt` | List all ICD10CM IRIs. |
-| B2–B9. ROBOT chain | `tmp/mirror-icd10cm.owl` | `icd10cm.owl` | Filter terms, remap properties, SPARQL fixes, strip to allowlist, annotate. |
+| B2–B9. ROBOT chain | `tmp/mirror-icd10cm.owl` | `tmp/icd10cm-component.owl` → copy to `icd10cm.owl` | Filter terms, remap properties, SPARQL fixes, strip to allowlist, annotate. |
+| LinkML | `tmp/icd10cm-component.owl` | `icd10cm.linkml.yml` | `transform.py` + `just validate` + `just verify`. |
+
+Published release assets: **`icd10cm.linkml.yml`** and **`icd10cm.owl`** (ROBOT component copy).
