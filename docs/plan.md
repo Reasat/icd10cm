@@ -20,9 +20,9 @@ The first two steps are separate invocations. The remaining ROBOT steps (Remove 
 
 | Step | Command / action |
 |------|------------------|
-| **Resolve version** | `python3 scripts/get_latest_bioportal.py [--apikey KEY]` — queries BioPortal submissions API, picks the one with the latest `released` date, writes `DOWNLOAD_URL`, `SUBMISSION_ID`, and `VERSION_IRI` to `.bioportal.env`. See `docs/get_latest_version.md` for latest download url logic. |
-| **Download** | `wget "$DOWNLOAD_URL" -O .icd10cm.tmp.owl` — fetches raw OWL from BioPortal using the resolved URL. |
-| **Remove imports** | `robot remove -i .icd10cm.tmp.owl --select imports` — inlines the imported ontology (e.g. SKOS) then drops the import statement, making the file self-contained. |
+| **Resolve version** | `uv run python scripts/resolve_version.py > .bioportal.env` — queries BioPortal submissions API, picks the submission with the latest `released` date (unless `BIOPORTAL_SUBMISSION_ID` is set), writes `DOWNLOAD_URL`, `SUBMISSION_ID`, and `VERSION_IRI`. Credentials: `env/.env` (see `env/.env.example`) or `BIOPORTAL_API_KEY` in the environment. |
+| **Acquire (resolve + download)** | `uv run python scripts/acquire.py` or `just acquire` — writes `.bioportal.env` and downloads raw OWL to `tmp/.icd10cm.tmp.owl`. |
+| **Remove imports** | `robot remove -i tmp/.icd10cm.tmp.owl --select imports` — inlines the imported ontology (e.g. SKOS) then drops the import statement, making the file self-contained. |
 | **Remove properties** | `robot remove -T config/remove_properties.txt` — drops coding-instruction and external metadata properties not needed for Mondo (e.g. `EXCLUDES1`, `NOTE`, `hasSTY`). |
 | **Annotate** | `robot annotate --ontology-iri https://github.com/monarch-initiative/icd10cm/releases/latest/download/icd10cm.owl --version-iri "$VERSION_IRI"` — sets a stable ontology IRI and a version-specific IRI from the BioPortal submission. |
 | **Normalize** | `robot odk:normalize --add-source true -o tmp/mirror-icd10cm.owl` — adds `dc:source` (provenance) from the version IRI. Output is an intermediate file consumed by Part B. |
@@ -39,11 +39,11 @@ Reproduces what used to run in mondo-ingest at [line 198](https://github.com/mon
 
 ### Relevant signature: build `tmp/icd10cm_relevant_signature.txt`
 
-Runs as a separate Make target (prerequisite of the component target). Queries `tmp/mirror-icd10cm.owl` with `sparql/icd10cm-relevant-signature.sparql` and writes one IRI per line (e.g. `http://purl.bioontology.org/ontology/ICD10CM/A00`) to `tmp/icd10cm_relevant_signature.txt`. ROBOT outputs a header row (`term`); the file is used as-is by `remove -T`, same as in mondo-ingest (the header line matches to nothing and has no effect for now).
+Runs as a separate `just` prerequisite (`signature`, before `component`). Queries `tmp/mirror-icd10cm.owl` with `sparql/icd10cm-relevant-signature.sparql` and writes one IRI per line (e.g. `http://purl.bioontology.org/ontology/ICD10CM/A00`) to `tmp/icd10cm_relevant_signature.txt`. ROBOT outputs a header row (`term`); the file is used as-is by `remove -T`, same as in mondo-ingest (the header line matches to nothing and has no effect for now).
 
-### Component: build `icd10cm.owl`
+### Component: build `tmp/icd10cm-component.owl`
 
-All steps below are chained into a single `robot` invocation; each row is a subcommand.
+All steps below are chained into a single `robot` invocation; each row is a subcommand. The justfile writes **`tmp/icd10cm-component.owl`**; `just publish-owl` copies it to repo-root **`icd10cm.owl`** for release.
 
 | Step | Command / action |
 |------|------------------|
@@ -54,14 +54,18 @@ All steps below are chained into a single `robot` invocation; each row is a subc
 | **SPARQL updates** | `robot query --update sparql/fix_omimps.ru --update sparql/fix-labels-with-brackets.ru --update sparql/exact_syn_from_label.ru` — exactly these three updates, in this order: normalize OMIM xrefs, fix labels with brackets, add exact synonyms from labels. |
 | **Remove extra properties** | `robot remove -T config/properties.txt --select complement --select properties --trim true` — keep only Mondo-approved properties; `--trim true` removes dangling references left after property removal. |
 | **Annotate** | `robot annotate --ontology-iri $(URIBASE)/mondo/sources/icd10cm.owl --version-iri $(URIBASE)/mondo/sources/$(TODAY)/icd10cm.owl` |
-| **Output** | `-o icd10cm.owl` |
+| **Output** | `-o tmp/icd10cm-component.owl` |
 
 ### Publish
 
-Release `icd10cm.owl` via GitHub Releases:
+Release **`icd10cm.owl`** (copy of the component file) and **`icd10cm.linkml.yml`** via GitHub Releases, for example:
 `https://github.com/monarch-initiative/icd10cm/releases/latest/download/icd10cm.owl`
 
 **Outcome:** `icd10cm.owl` — Mondo's ICD10CM source, used directly by mondo-ingest with no further preprocessing.
+
+### LinkML YAML (`icd10cm.linkml.yml`)
+
+After the ROBOT component OWL is built (`tmp/icd10cm-component.owl`), `scripts/transform.py` serializes it to **`icd10cm.linkml.yml`** (schema: `linkml/mondo_source_schema.yaml`). Run `just validate` and `just verify` before release. The canonical OWL artefact remains **`icd10cm.owl`** (ROBOT output copied from the component build), not a YAML round-trip.
 
 ---
 

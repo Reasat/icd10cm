@@ -1,3 +1,5 @@
+Implementation: **`scripts/resolve_version.py`** (and **`scripts/acquire.py`**, which calls the same resolution logic before downloading).
+
 ```python
 BIOPORTAL_BASE = "https://data.bioontology.org"
 ONTOLOGY_ACRONYM = "ICD10CM"

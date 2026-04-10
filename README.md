@@ -1,37 +1,40 @@
 # icd10cm
 
-Preprocessed **ICD-10-CM** (US Clinical Modification) ontology for downstream consumers (e.g. [Mondo](https://github.com/monarch-initiative/mondo)).
+Preprocessed ICD-10-CM (US Clinical Modification) from BioPortal for Mondo source ingest — LinkML YAML plus ROBOT-built OWL.
 
-## What this repo does
+## Setup
 
-1. Resolves the **latest** ICD10CM submission from [BioPortal](https://bioportal.bioontology.org/ontologies/ICD10CM) via API (no hardcoded submission ID).
-2. Downloads the ontology and runs preprocessing (mirror + component build) as in [mondo-ingest](https://github.com/monarch-initiative/mondo-ingest):
-   - **Mirror:** remove imports, remove unwanted properties (`config/remove_properties.txt`), set ontology/version IRI, normalize.
-   - **Component:** filter to relevant ICD10CM terms, remap properties to Mondo conventions, apply SPARQL fixes, keep only allowed properties; output `icd10cm.owl`.
-3. Publishes the result as **GitHub Release** assets so pipelines can pull a stable URL instead of depending on BioPortal at build time.
+1. Get an API key from [BioPortal](https://bioportal.bioontology.org/account).
+2. Copy `env/.env.example` → `env/.env` and set `BIOPORTAL_API_KEY`.
+3. Install dependencies: `uv sync`
 
-## Download
+## Run
 
-- **Latest release:**  
-  https://github.com/monarch-initiative/icd10cm/releases/latest/download/icd10cm.owl
-
-## Build locally
-
-- **Requirements:** [ROBOT](https://github.com/ontodev/robot), Python 3, `wget`. Run `pip install -r requirements.txt` for the resolve script and tests.
-
-- **API key:** Get a key from [BioPortal](https://bioportal.bioontology.org/account) and set `BIOPORTAL_API_KEY` (or pass `apikey=YOUR_KEY` to make).
+Requires [ROBOT](https://github.com/ontodev/robot) and the ODK normalize plugin (e.g. via `obolibrary/odkfull` Docker, as in CI).
 
 ```bash
-export BIOPORTAL_API_KEY=your_key
-make build
+just acquire       # resolve + download raw OWL from BioPortal
+just build         # mirror → component → YAML → validate → verify → publish OWL
+just iterate       # transform → validate → verify → publish-owl (skips acquire/mirror)
 ```
 
-Output: `icd10cm.owl`. Run `make test` to run the test suite (requires ROBOT).
+## Outputs
+
+| File | Description |
+|------|-------------|
+| `icd10cm.linkml.yml` | Primary artefact for Mondo ingest (LinkML) |
+| `icd10cm.owl` | Canonical OWL — ROBOT component output (not YAML round-trip) |
+
+Optional: `just data2owl` emits linkml-OWL from YAML for experiments only; see `docs/report.md`.
+
+## Docs
+
+| Doc | Contents |
+|-----|----------|
+| [`docs/plan.md`](docs/plan.md) | Pipeline architecture, field mappings, ID scheme |
+| [`docs/release_notes.md`](docs/release_notes.md) | Ontology stats and verification results per release |
+| [`docs/report.md`](docs/report.md) | Deviations and tool limitations |
 
 ## CI
 
-GitHub Actions (see [.github/workflows/release.yml](.github/workflows/release.yml)) can build and create a new release on schedule, on push to `main`, or via **workflow_dispatch**. Configure the repository secret **BIOPORTAL_API_KEY** for the workflow to access BioPortal.
-
-## License
-
-ICD-10-CM content is from the National Center for Health Statistics / CMS; see [BioPortal ICD10CM](https://bioportal.bioontology.org/ontologies/ICD10CM) and UMLS license terms. This repository’s build scripts and config are provided under an open license as in the Monarch Initiative repos.
+GitHub Actions expects the repository secret `BIOPORTAL_API_KEY` (same variable as in `env/.env`).

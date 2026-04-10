@@ -1,20 +1,34 @@
-# Build outputs and intermediates
-icd10cm.owl
-icd10cm.yaml
-tmp/
-.bioportal.env
+# Credentials — never commit
 .env
-.cursor/
+env/.env
+
+# Build artefacts — uploaded as GitHub Release assets
+icd10cm.owl
+icd10cm.linkml.yml
+icd10cm.yaml
+icd10cm_from_linkml.owl
+
+# BioPortal resolve sidecar
+.bioportal.env
+
+# Build intermediates
+tmp/
+
 # Python
+*.pyc
 __pycache__/
-*.py[cod]
+*.egg-info/
+
+# Virtual env — uv.lock IS committed for reproducible CI builds
 .venv/
 venv/
+
 # Test outputs
 tests/output/
 !tests/output/.gitkeep
 
 # IDE
+.cursor/
 .idea/
 .vscode/
 *.swp

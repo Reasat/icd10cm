@@ -1,5 +1,5 @@
-# Justfile for icd10cm — full source pipeline (replaces Makefile)
-# Prerequisites: uv (https://docs.astral.sh/uv/), robot, wget
+# Justfile for icd10cm — full source pipeline (Mondo source-ingest scaffold)
+# Prerequisites: uv (https://docs.astral.sh/uv/), robot
 # Canonical icd10cm.owl = ROBOT component (tmp/icd10cm-component.owl), not linkml-data2owl.
 # Usage: just <recipe>
 
@@ -9,7 +9,7 @@ COMPONENT_OWL := "tmp/icd10cm-component.owl"
 TMP_OWL       := "tmp/.icd10cm.tmp.owl"
 SIG_TXT       := "tmp/icd10cm_relevant_signature.txt"
 BP_ENV        := ".bioportal.env"
-YAML_OUT      := "icd10cm.yaml"
+YAML_OUT      := "icd10cm.linkml.yml"
 OWL_OUT       := "icd10cm.owl"
 ONTOLOGY_IRI  := "https://github.com/monarch-initiative/icd10cm/releases/latest/download/icd10cm.owl"
 URIBASE       := "http://purl.obolibrary.org/obo"
@@ -26,37 +26,29 @@ install:
 
 # ── Resolve BioPortal submission ──────────────────────────────────────────────
 
-# Resolve ICD10CM submission from BioPortal → .bioportal.env
-# Reads BIOPORTAL_API_KEY from environment or .env file.
-# Optional: set BIOPORTAL_SUBMISSION_ID (e.g. 27) to pin a submission instead of latest.
+# Resolve ICD10CM submission from BioPortal → .bioportal.env (no download)
+# Credentials: env/.env (see env/.env.example). Optional: BIOPORTAL_SUBMISSION_ID.
 resolve:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # Load .env if it exists so BIOPORTAL_API_KEY is available.
-    [ -f .env ] && export $(grep -v '^#' .env | xargs)
-    KEY="${BIOPORTAL_API_KEY:-}"
-    if [ -z "$KEY" ]; then
-      echo "Error: set BIOPORTAL_API_KEY in .env or environment" >&2
-      exit 1
-    fi
-    {{ PYTHON }} scripts/get_latest_bioportal.py > {{ BP_ENV }}
-    echo "Resolved latest BioPortal submission; see {{ BP_ENV }}"
+    {{ PYTHON }} scripts/resolve_version.py > {{ BP_ENV }}
+    @echo "Resolved latest BioPortal submission; see {{ BP_ENV }}"
 
 # Print the resolved BioPortal env (download URL, submission ID, version IRI)
 env: resolve
     @cat {{ BP_ENV }}
 
+# Download raw OWL from BioPortal → .bioportal.env + tmp/.icd10cm.tmp.owl (Mondo skill: acquire)
+acquire:
+    {{ PYTHON }} scripts/acquire.py
+
 # ── Part A: Mirror build ──────────────────────────────────────────────────────
 
-# Download raw OWL from BioPortal, remove imports + unwanted properties,
+# Fetch raw OWL from BioPortal (scripts/acquire.py), then remove imports + unwanted properties,
 # annotate with stable IRI and version IRI, normalize → tmp/mirror-icd10cm.owl
-mirror: resolve
+mirror: acquire
     #!/usr/bin/env bash
     set -euo pipefail
     source {{ BP_ENV }}
     mkdir -p tmp
-    echo "Downloading ICD10CM from BioPortal..."
-    wget "$DOWNLOAD_URL" -O {{ TMP_OWL }}
     echo "Running: robot remove + annotate + odk:normalize → {{ MIRROR }}"
     ROBOT_PLUGINS_DIRECTORY={{ ROBOT_PLUGINS_DIRECTORY }} \
     {{ ROBOT }} remove -i {{ TMP_OWL }} --select imports \
@@ -110,12 +102,15 @@ transform: component
 
 # ── Validate ──────────────────────────────────────────────────────────────────
 
-# Validate YAML against the LinkML schema (drift detection)
+# Validate YAML against the LinkML schema
 validate:
-    uv run linkml-validate \
-        --schema {{ SCHEMA }} \
-        --target-class OntologyDocument \
-        {{ YAML_OUT }}
+    uv run python -m linkml.validator.cli -s {{ SCHEMA }} -C OntologyDocument {{ YAML_OUT }}
+
+# Structural checks on YAML (Phase 9 — scripts/verify.py)
+verify:
+    uv run python scripts/verify.py --yaml {{ YAML_OUT }}
+
+check: validate verify
 
 # ── OWL publish (canonical) ───────────────────────────────────────────────────
 
@@ -133,12 +128,12 @@ data2owl:
 
 # ── Composite targets ─────────────────────────────────────────────────────────
 
-# Full build: mirror → component → YAML → validate → copy component OWL to {{ OWL_OUT }}
-build: component transform validate publish-owl
+# Full build: mirror → component → YAML → validate → verify → copy component OWL to {{ OWL_OUT }}
+build: component transform validate verify publish-owl
     @echo "Build complete: {{ YAML_OUT }} (LinkML) and {{ OWL_OUT }} (ROBOT component copy)"
 
-# Re-run transform → validate → publish-owl (assumes component already built)
-iterate: transform validate publish-owl
+# Re-run transform → validate → verify → publish-owl (assumes component already built)
+iterate: transform validate verify publish-owl
     @echo "Iteration complete: {{ YAML_OUT }} valid; {{ OWL_OUT }} = component copy"
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
@@ -151,7 +146,7 @@ test:
 
 # Remove all generated files
 clean:
-    rm -f {{ OWL_OUT }} {{ YAML_OUT }} {{ TMP_OWL }} {{ BP_ENV }}
+    rm -f {{ OWL_OUT }} {{ YAML_OUT }} icd10cm_from_linkml.owl {{ TMP_OWL }} {{ BP_ENV }}
     rm -rf tmp/
 
 # ── Docs ──────────────────────────────────────────────────────────────────────

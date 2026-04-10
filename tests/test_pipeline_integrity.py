@@ -63,7 +63,7 @@ class TestStructuralIntegrity(unittest.TestCase):
                 line = line.strip()
                 if line:
                     f.write(line + "\n")
-        # 2. Run Part B pipeline (same as Makefile, minus annotate for simplicity)
+        # 2. Run Part B pipeline (same as just component, minus annotate for simplicity)
         subprocess.run(
             [
                 "robot",

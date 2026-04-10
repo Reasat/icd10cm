@@ -7,13 +7,13 @@ property strip). Reads rdfs:label, oboInOwl:hasExactSynonym, and other
 schema slots directly — no data fixes; those are done by ROBOT.
 
 Input:  tmp/icd10cm-component.owl   (after just component)
-Output: icd10cm.yaml                 (conforms to linkml/mondo_source_schema.yaml)
+Output: icd10cm.linkml.yml          (conforms to linkml/mondo_source_schema.yaml)
 
 Usage:
     python scripts/transform.py \\
         --input tmp/icd10cm-component.owl \\
         --schema linkml/mondo_source_schema.yaml \\
-        --output icd10cm.yaml
+        --output icd10cm.linkml.yml
 """
 
 from __future__ import annotations
@@ -190,7 +190,7 @@ def main() -> None:
         "--output",
         type=Path,
         required=True,
-        help="Output YAML path (e.g. icd10cm.yaml)",
+        help="Output YAML path (e.g. icd10cm.linkml.yml)",
     )
     args = parser.parse_args()
 

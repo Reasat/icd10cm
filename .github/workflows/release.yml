@@ -1,5 +1,5 @@
 # Build preprocessed ICD10CM and publish YAML + OWL as GitHub Release assets.
-# Pipeline: ROBOT mirror → component OWL → transform.py (YAML) → linkml-validate → cp component → icd10cm.owl.
+# Pipeline: ROBOT mirror → component OWL → transform.py → linkml validate → verify → cp component → icd10cm.owl.
 # Run on schedule, manual trigger, or push to main.
 # Requires repository secret: BIOPORTAL_API_KEY
 
@@ -10,15 +10,17 @@ on:
   schedule:
     # Run weekly (Monday 00:00 UTC)
     - cron: "0 0 * * 1"
-  push: # for automatic testing
+  push:
     branches: [main]
     paths:
       - "justfile"
       - "pyproject.toml"
+      - "uv.lock"
       - "config/**"
       - "linkml/**"
       - "scripts/**"
       - "sparql/**"
+      - "src/**"
       - "tests/**"
 
 jobs:
@@ -30,15 +32,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-
-      - name: Install just
-        uses: extractions/setup-just@v2
-
-      - name: Install Python dependencies
-        run: uv sync
-
       - name: Run tests
         run: |
           docker run --rm \
@@ -46,9 +39,9 @@ jobs:
             -v "$PWD:/work" \
             -w /work \
             obolibrary/odkfull:v1.6 \
-            bash -c "pip3 install --break-system-packages uv && uv sync && just test"
+            bash -c "set -euo pipefail; pip3 install --break-system-packages uv; curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin; uv sync; uv run python -m unittest discover -s tests -p 'test_*.py' -v"
 
-      - name: Build (mirror → component → YAML → validate → publish OWL)
+      - name: Build (mirror → component → YAML → validate → verify → publish OWL)
         env:
           BIOPORTAL_API_KEY: ${{ secrets.BIOPORTAL_API_KEY }}
         run: |
@@ -62,20 +55,20 @@ jobs:
             -v "$PWD:/work" \
             -w /work \
             obolibrary/odkfull:v1.6 \
-            bash -c "pip3 install --break-system-packages uv && uv sync && just build"
+            bash -c "set -euo pipefail; pip3 install --break-system-packages uv; curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin; uv sync; just build"
 
       - name: Set release tag
         id: version
         run: echo "tag=v$(date +%Y%m%d)-${{ github.run_number }}" >> $GITHUB_OUTPUT
 
       - name: Create Release and upload assets
-        if: success() && hashFiles('icd10cm.yaml') != ''
+        if: success() && hashFiles('icd10cm.linkml.yml') != ''
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: Release ${{ steps.version.outputs.tag }}
           files: |
-            icd10cm.yaml
+            icd10cm.linkml.yml
             icd10cm.owl
           generate_release_notes: true
           draft: false
