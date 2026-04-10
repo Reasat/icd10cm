@@ -67,6 +67,16 @@ Release **`icd10cm.owl`** (copy of the component file) and **`icd10cm.linkml.yml
 
 After the ROBOT component OWL is built (`tmp/icd10cm-component.owl`), `scripts/transform.py` serializes it to **`icd10cm.linkml.yml`** (schema: `linkml/mondo_source_schema.yaml`). Run `just validate` and `just verify` before release. The canonical OWL artefact remains **`icd10cm.owl`** (ROBOT output copied from the component build), not a YAML round-trip.
 
+### Phase 9 verification (pre-release)
+
+Per the **mondo-source-ingest** skill, Phase 9 (structural checks + release notes):
+
+1. **`just check`** — `linkml.validator.cli` on `icd10cm.linkml.yml` plus **`scripts/verify.py`** (duplicate IDs, empty labels, broken `parents`, optional `--expected-version` against the ICD10CM release id in YAML).
+2. **Record** ontology stats and PASS/FAIL in **`docs/release_notes.md`** for each tagged release.
+3. **Manual (OWL):** Load **`icd10cm.owl`** in ROBOT (e.g. `robot merge -i icd10cm.owl -o /tmp/t.owl`) or Protégé; note in release notes. Optional: `robot diff` vs a mondo-ingest reference OWL when migrating.
+
+Release schedule in CI: weekly cron + `workflow_dispatch` + push to `main` (see `.github/workflows/release.yml`). Adjust if upstream cadence or API limits require it.
+
 ---
 
 ## Changes in mondo-ingest

@@ -106,9 +106,16 @@ transform: component
 validate:
     uv run python -m linkml.validator.cli -s {{ SCHEMA }} -C OntologyDocument {{ YAML_OUT }}
 
-# Structural checks on YAML (Phase 9 — scripts/verify.py)
+# Structural checks on YAML (Phase 9 — scripts/verify.py).
+# Optional: EXPECTED_VERSION=2026 just verify  — YAML version must match upstream ICD10CM release id.
 verify:
-    uv run python scripts/verify.py --yaml {{ YAML_OUT }}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ -n "${EXPECTED_VERSION:-}" ]; then
+      uv run python scripts/verify.py --yaml "{{ YAML_OUT }}" --expected-version "$EXPECTED_VERSION"
+    else
+      uv run python scripts/verify.py --yaml "{{ YAML_OUT }}"
+    fi
 
 check: validate verify
 

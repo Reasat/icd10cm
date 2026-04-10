@@ -91,6 +91,37 @@ def main() -> None:
         errors.append(f"terms with missing/empty label: {empty_labels}")
 
     broken_parents: list[tuple[str, str]] = []
+    terms_with_definition = 0
+    exact_synonym_items = 0
+    related_synonym_items = 0
+    narrow_synonym_items = 0
+    broad_synonym_items = 0
+    root_terms = 0
+    deprecated_terms = 0
+
+    def _strip_nonempty(val: object) -> bool:
+        return val is not None and bool(str(val).strip())
+
+    for t in terms:
+        if _strip_nonempty(t.get("definition")):
+            terms_with_definition += 1
+        exact_synonym_items += sum(
+            1 for x in (t.get("exact_synonyms") or []) if _strip_nonempty(x)
+        )
+        related_synonym_items += sum(
+            1 for x in (t.get("related_synonyms") or []) if _strip_nonempty(x)
+        )
+        narrow_synonym_items += sum(
+            1 for x in (t.get("narrow_synonyms") or []) if _strip_nonempty(x)
+        )
+        broad_synonym_items += sum(
+            1 for x in (t.get("broad_synonyms") or []) if _strip_nonempty(x)
+        )
+        if t.get("is_root") is True:
+            root_terms += 1
+        if t.get("deprecated") is True:
+            deprecated_terms += 1
+
     for t in terms:
         tid = t.get("id")
         for par in t.get("parents") or []:
@@ -124,6 +155,13 @@ def main() -> None:
     print(f"terms: {len(terms)}")
     print(f"unique ids: {len(ids)}")
     print(f"broken parent refs: {len(broken_parents)}")
+    print(f"terms_with_definition: {terms_with_definition}")
+    print(f"exact_synonym_items: {exact_synonym_items}")
+    print(f"related_synonym_items: {related_synonym_items}")
+    print(f"narrow_synonym_items: {narrow_synonym_items}")
+    print(f"broad_synonym_items: {broad_synonym_items}")
+    print(f"root_terms (is_root): {root_terms}")
+    print(f"deprecated_terms: {deprecated_terms}")
 
     if errors:
         print("\nFAIL", file=sys.stderr)
