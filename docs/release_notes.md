@@ -19,6 +19,8 @@ Ontology statistics and Phase 9 verification results. Update the **Latest verifi
 
 **OWL source:** released OWL is **`icd10cm.owl`** (ROBOT component). No `linkml-owl` derived OWL is required for Phase 9.
 
+**Schema v0.4.0:** `exact_synonyms` (and other synonym slots) are inlined **Synonym** objects (`synonym_text`, optional `synonym_type`). Root terms have **no `parents` key** — `is_root` is not written to YAML (see `docs/pipeline_incidents.md`).
+
 ---
 
 ## Latest verification
@@ -26,6 +28,8 @@ Ontology statistics and Phase 9 verification results. Update the **Latest verifi
 **When:** 2026-04-10 (local full build + verify; artefacts present in repo workspace, not committed).
 
 **Upstream:** BioPortal ICD10CM submission **`SUBMISSION_ID=28`** (from `.bioportal.env` after `just acquire`). YAML **`version`** field: **`2026`** (ICD10CM release id from ontology metadata).
+
+**Note:** Counts below are from the **pre–v0.4.0** YAML shape (plain-string synonyms, `is_root` on roots). After commit `2a94401` (mondo-source-ingest v0.4.0), re-run `just build` and paste fresh `just verify` output on the **next** release.
 
 | Metric | Value |
 |--------|------:|
@@ -35,7 +39,7 @@ Ontology statistics and Phase 9 verification results. Update the **Latest verifi
 | Terms with `definition` | 0 |
 | Exact synonym items (non-empty) | 114,557 |
 | Related / narrow / broad synonym items | 0 |
-| Root terms (`is_root`) | 23 |
+| Root terms (`is_root` in YAML; superseded) | 23 |
 | Deprecated terms | 0 |
 
 | Step | Result |
@@ -56,6 +60,7 @@ Ontology statistics and Phase 9 verification results. Update the **Latest verifi
 - **Date:**
 - **BioPortal `SUBMISSION_ID`:** (from `.bioportal.env`)
 - **YAML `version`:** (must reflect upstream ICD10CM release id)
+- **Env:** `uv sync` then **`just dependencies`** (mondo-source-ingest linkml pin) before `just build`
 - Paste output of: `just check` and `just verify` (and `EXPECTED_VERSION=... just verify` if used)
 - **Manual OWL:** ROBOT / Protégé result
 - **Notes:**
