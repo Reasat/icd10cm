@@ -134,13 +134,14 @@ Drops any individuals that were in the relevant signature but should not be in t
 
 ### B6. SPARQL updates
 
-**Command:** `robot query --update sparql/fix_omimps.ru --update sparql/fix-labels-with-brackets.ru --update sparql/exact_syn_from_label.ru`
+**Command:** `robot query --update sparql/fix_xref_prefixes.ru --update sparql/fix_omimps.ru --update sparql/fix-labels-with-brackets.ru --update sparql/exact_syn_from_label.ru`
 
-Three updates applied in order:
+Updates applied in order:
 
-1. **`fix_omimps.ru`** — rewrites `MIM:PS*` xrefs to `OMIMPS:*` format.
-2. **`fix-labels-with-brackets.ru`** — for labels ending in `(...)` or `[...]`, adds the stripped version as an exact synonym.
-3. **`exact_syn_from_label.ru`** — adds an exact synonym copy of every `rdfs:label`.
+1. **`fix_xref_prefixes.ru`** — normalises common bad `oboInOwl:hasDbXref` prefixes (mondo-source-ingest default; no-op if absent).
+2. **`fix_omimps.ru`** — rewrites `MIM:PS*` xrefs to `OMIMPS:*` format.
+3. **`fix-labels-with-brackets.ru`** — for labels ending in `(...)` or `[...]`, adds the stripped version as an exact synonym.
+4. **`exact_syn_from_label.ru`** — adds an exact synonym copy of every `rdfs:label`.
 
 ---
 

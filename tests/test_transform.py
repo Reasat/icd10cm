@@ -22,6 +22,19 @@ OUTPUT_YAML = PROJECT_ROOT / "tests" / "output" / "icd10cm_transform_test.yaml"
 ICD10CM_PREFIX = "ICD10CM:"
 
 
+def _exact_synonym_texts(term: dict) -> list[str]:
+    """Synonyms are inlined Synonym objects (synonym_text) or legacy strings."""
+    out: list[str] = []
+    for x in term.get("exact_synonyms") or []:
+        if isinstance(x, dict):
+            t = x.get("synonym_text")
+            if t is not None and str(t).strip():
+                out.append(str(t).strip())
+        elif x is not None and str(x).strip():
+            out.append(str(x).strip())
+    return out
+
+
 # ── Integration test: run transform on component mini OWL ─────────────────────
 
 class TestTransformOnComponentMiniOWL(unittest.TestCase):
@@ -101,7 +114,7 @@ class TestTransformOnComponentMiniOWL(unittest.TestCase):
         for term in self.doc["terms"]:
             if term.get("deprecated"):
                 continue
-            syns = term.get("exact_synonyms", [])
+            syns = _exact_synonym_texts(term)
             self.assertIn(
                 term["label"],
                 syns,
@@ -114,7 +127,7 @@ class TestTransformOnComponentMiniOWL(unittest.TestCase):
         """Fixture Z00 has 'encounter for general examination' as exact synonym."""
         z00 = self._get_term("Z00")
         self.assertIsNotNone(z00)
-        syns = z00.get("exact_synonyms", [])
+        syns = _exact_synonym_texts(z00)
         self.assertIn("encounter for general examination", syns)
 
     # ── Deprecated term has no label-as-synonym ────────────────────────────────
@@ -125,19 +138,25 @@ class TestTransformOnComponentMiniOWL(unittest.TestCase):
         self.assertIsNotNone(b20)
         self.assertTrue(b20.get("deprecated"))
         # Component OWL does not add label as synonym for deprecated
-        syns = b20.get("exact_synonyms", [])
+        syns = _exact_synonym_texts(b20)
         self.assertNotIn(b20["label"], syns)
 
     # ── Parents and root flags ────────────────────────────────────────────────
 
-    def test_roots_have_is_root_true(self):
-        """Terms with no named ICD10CM parents must be marked is_root."""
+    def test_roots_have_no_parents_key(self):
+        """Root terms omit parents and is_root (mondo-source-ingest: internal only)."""
         for term in self.doc["terms"]:
             parents = term.get("parents", [])
             if len(parents) == 0:
-                self.assertTrue(
-                    term.get("is_root", False),
-                    f"Term {term['id']} has no parents but is_root is not True",
+                self.assertNotIn(
+                    "parents",
+                    term,
+                    f"Term {term['id']} is root but has parents key",
+                )
+                self.assertNotIn(
+                    "is_root",
+                    term,
+                    f"Term {term['id']} must not emit is_root (internal only)",
                 )
 
     def test_non_roots_have_icd10cm_parents(self):

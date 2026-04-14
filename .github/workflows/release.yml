@@ -39,7 +39,7 @@ jobs:
             -v "$PWD:/work" \
             -w /work \
             obolibrary/odkfull:v1.6 \
-            bash -c "set -euo pipefail; pip3 install --break-system-packages uv; curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin; uv sync; uv run python -m unittest discover -s tests -p 'test_*.py' -v"
+            bash -c "set -euo pipefail; pip3 install --break-system-packages uv; curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin; uv sync; just dependencies; uv run python -m unittest discover -s tests -p 'test_*.py' -v"
 
       - name: Build (mirror → component → YAML → validate → verify → publish OWL)
         env:
@@ -55,7 +55,7 @@ jobs:
             -v "$PWD:/work" \
             -w /work \
             obolibrary/odkfull:v1.6 \
-            bash -c "set -euo pipefail; pip3 install --break-system-packages uv; curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin; uv sync; just build"
+            bash -c "set -euo pipefail; pip3 install --break-system-packages uv; curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin; uv sync; just dependencies; just build"
 
       - name: Set release tag
         id: version

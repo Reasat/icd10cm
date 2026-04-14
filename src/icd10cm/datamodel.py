@@ -30,7 +30,7 @@ from pydantic import (
 
 
 metamodel_version = "1.7.0"
-version = "0.1.0"
+version = "0.4.0"
 
 
 class ConfiguredBaseModel(BaseModel):
@@ -68,16 +68,16 @@ class LinkMLMeta(RootModel):
 
 linkml_meta = LinkMLMeta({'default_prefix': 'mondo_src',
      'default_range': 'string',
-     'description': 'Minimal LinkML schema for a Mondo-ready ontology source. '
-                    'Captures only the elements Mondo uses: labels, definitions, '
-                    'synonyms, and hierarchical parentage. Used to validate and '
-                    'export each source as a schema-conformant YAML + OWL '
-                    'artefact.',
+     'description': 'LinkML schema for ICD-10-CM source for Mondo ingest. Extends '
+                    'mondo-source-ingest v0.4.0 with document-level BioPortal '
+                    'metadata and skos:closeMatch synonyms.',
      'id': 'https://w3id.org/monarch-initiative/mondo-source-schema',
      'imports': ['linkml:types'],
      'name': 'mondo_source_schema',
      'prefixes': {'ICD10CM': {'prefix_prefix': 'ICD10CM',
                               'prefix_reference': 'http://purl.bioontology.org/ontology/ICD10CM/'},
+                  'MONDO': {'prefix_prefix': 'MONDO',
+                            'prefix_reference': 'http://purl.obolibrary.org/obo/mondo#'},
                   'dcterms': {'prefix_prefix': 'dcterms',
                               'prefix_reference': 'http://purl.org/dc/terms/'},
                   'linkml': {'prefix_prefix': 'linkml',
@@ -94,67 +94,247 @@ linkml_meta = LinkMLMeta({'default_prefix': 'mondo_src',
                            'prefix_reference': 'http://www.w3.org/2000/01/rdf-schema#'},
                   'skos': {'prefix_prefix': 'skos',
                            'prefix_reference': 'http://www.w3.org/2004/02/skos/core#'}},
-     'source_file': '/workspace/Projects/icd10cm/linkml/mondo_source_schema.yaml'} )
+     'source_file': 'linkml/mondo_source_schema.yaml'} )
+
+class SynonymTypeEnum(str, Enum):
+    """
+    Types of synonyms used in Mondo source ingests.
+    """
+    omim_included = "omim_included"
+    generated_from_label = "generated_from_label"
+    generated = "generated"
+    omim_formerly = "omim_formerly"
+    abbreviation = "abbreviation"
+
 
 
 class OntologyDocument(ConfiguredBaseModel):
-    """
-    Top-level container representing a single ontology source release.
-    """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'class_uri': 'owl:Ontology',
          'from_schema': 'https://w3id.org/monarch-initiative/mondo-source-schema',
          'tree_root': True})
 
-    title: str = Field(default=..., description="""Human-readable title of the ontology source.""", json_schema_extra = { "linkml_meta": {'domain_of': ['OntologyDocument'], 'slot_uri': 'dcterms:title'} })
-    version: str = Field(default=..., description="""Version string for this release (e.g. \"2024ab\" or \"2025-03-01\").""", json_schema_extra = { "linkml_meta": {'domain_of': ['OntologyDocument'], 'slot_uri': 'owl:versionInfo'} })
-    source: Optional[str] = Field(default=None, description="""Provenance IRI for the upstream ontology file (oboInOwl:source), e.g. BioPortal submission URL.""", json_schema_extra = { "linkml_meta": {'domain_of': ['OntologyDocument'], 'slot_uri': 'oboInOwl:source'} })
-    ontology_comment: Optional[str] = Field(default=None, description="""Ontology-level rdfs:comment (e.g. UMLS2RDF tool line).""", json_schema_extra = { "linkml_meta": {'domain_of': ['OntologyDocument'], 'slot_uri': 'rdfs:comment'} })
-    version_iri: Optional[str] = Field(default=None, description="""Ontology owl:versionIRI for this build (distinct from versionInfo text).""", json_schema_extra = { "linkml_meta": {'domain_of': ['OntologyDocument'], 'slot_uri': 'owl:versionIRI'} })
-    terms: list[OntologyTerm] = Field(default=..., description="""All terms included in this source release.""", json_schema_extra = { "linkml_meta": {'domain_of': ['OntologyDocument']} })
+    title: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['OntologyDocument'], 'slot_uri': 'rdfs:label'} })
+    version: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['OntologyDocument'], 'slot_uri': 'owl:versionInfo'} })
+    source: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
+         'domain_of': ['OntologyDocument'],
+         'slot_uri': 'oboInOwl:source'} })
+    ontology_comment: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
+         'domain_of': ['OntologyDocument'],
+         'slot_uri': 'rdfs:comment'} })
+    version_iri: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
+         'domain_of': ['OntologyDocument'],
+         'slot_uri': 'owl:versionIRI'} })
+    terms: list[OntologyTerm] = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['OntologyDocument']} })
+
+
+class Synonym(ConfiguredBaseModel):
+    """
+    A synonym value with an optional type annotation.
+    """
+    linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'from_schema': 'https://w3id.org/monarch-initiative/mondo-source-schema'})
+
+    synonym_text: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['Synonym']} })
+    synonym_type: Optional[SynonymTypeEnum] = Field(default=None, json_schema_extra = { "linkml_meta": {'domain_of': ['Synonym']} })
 
 
 class OntologyTerm(ConfiguredBaseModel):
-    """
-    A single class / concept from the source ontology, containing only the elements Mondo requires for ingest.
-    """
     linkml_meta: ClassVar[LinkMLMeta] = LinkMLMeta({'class_uri': 'owl:Class',
-         'from_schema': 'https://w3id.org/monarch-initiative/mondo-source-schema'})
+         'from_schema': 'https://w3id.org/monarch-initiative/mondo-source-schema',
+         'slot_usage': {'broad_synonyms': {'annotations': {'owl.template': {'tag': 'owl.template',
+                                                                            'value': '{% '
+                                                                                     'for '
+                                                                                     's '
+                                                                                     'in '
+                                                                                     'broad_synonyms '
+                                                                                     '%}\n'
+                                                                                     'AnnotationAssertion({% '
+                                                                                     'if '
+                                                                                     's.synonym_type '
+                                                                                     '%}Annotation(oboInOwl:hasSynonymType '
+                                                                                     '{{s.synonym_type.meaning}}) '
+                                                                                     '{% '
+                                                                                     'endif '
+                                                                                     '%}oboInOwl:hasBroadSynonym '
+                                                                                     '{{id}} '
+                                                                                     '"{{s.synonym_text|replace(\'"\', '
+                                                                                     '\'\\\\"\')}}")\n'
+                                                                                     '{% '
+                                                                                     'endfor '
+                                                                                     '%}'}},
+                                           'name': 'broad_synonyms'},
+                        'close_synonyms': {'annotations': {'owl.template': {'tag': 'owl.template',
+                                                                            'value': '{% '
+                                                                                     'for '
+                                                                                     's '
+                                                                                     'in '
+                                                                                     'close_synonyms '
+                                                                                     '%}\n'
+                                                                                     'AnnotationAssertion({% '
+                                                                                     'if '
+                                                                                     's.synonym_type '
+                                                                                     '%}Annotation(oboInOwl:hasSynonymType '
+                                                                                     '{{s.synonym_type.meaning}}) '
+                                                                                     '{% '
+                                                                                     'endif '
+                                                                                     '%}skos:closeMatch '
+                                                                                     '{{id}} '
+                                                                                     '"{{s.synonym_text|replace(\'"\', '
+                                                                                     '\'\\\\"\')}}")\n'
+                                                                                     '{% '
+                                                                                     'endfor '
+                                                                                     '%}'}},
+                                           'name': 'close_synonyms'},
+                        'exact_synonyms': {'annotations': {'owl.template': {'tag': 'owl.template',
+                                                                            'value': '{% '
+                                                                                     'for '
+                                                                                     's '
+                                                                                     'in '
+                                                                                     'exact_synonyms '
+                                                                                     '%}\n'
+                                                                                     'AnnotationAssertion({% '
+                                                                                     'if '
+                                                                                     's.synonym_type '
+                                                                                     '%}Annotation(oboInOwl:hasSynonymType '
+                                                                                     '{{s.synonym_type.meaning}}) '
+                                                                                     '{% '
+                                                                                     'endif '
+                                                                                     '%}oboInOwl:hasExactSynonym '
+                                                                                     '{{id}} '
+                                                                                     '"{{s.synonym_text|replace(\'"\', '
+                                                                                     '\'\\\\"\')}}")\n'
+                                                                                     '{% '
+                                                                                     'endfor '
+                                                                                     '%}'}},
+                                           'name': 'exact_synonyms'},
+                        'narrow_synonyms': {'annotations': {'owl.template': {'tag': 'owl.template',
+                                                                             'value': '{% '
+                                                                                      'for '
+                                                                                      's '
+                                                                                      'in '
+                                                                                      'narrow_synonyms '
+                                                                                      '%}\n'
+                                                                                      'AnnotationAssertion({% '
+                                                                                      'if '
+                                                                                      's.synonym_type '
+                                                                                      '%}Annotation(oboInOwl:hasSynonymType '
+                                                                                      '{{s.synonym_type.meaning}}) '
+                                                                                      '{% '
+                                                                                      'endif '
+                                                                                      '%}oboInOwl:hasNarrowSynonym '
+                                                                                      '{{id}} '
+                                                                                      '"{{s.synonym_text|replace(\'"\', '
+                                                                                      '\'\\\\"\')}}")\n'
+                                                                                      '{% '
+                                                                                      'endfor '
+                                                                                      '%}'}},
+                                            'name': 'narrow_synonyms'},
+                        'related_synonyms': {'annotations': {'owl.template': {'tag': 'owl.template',
+                                                                              'value': '{% '
+                                                                                       'for '
+                                                                                       's '
+                                                                                       'in '
+                                                                                       'related_synonyms '
+                                                                                       '%}\n'
+                                                                                       'AnnotationAssertion({% '
+                                                                                       'if '
+                                                                                       's.synonym_type '
+                                                                                       '%}Annotation(oboInOwl:hasSynonymType '
+                                                                                       '{{s.synonym_type.meaning}}) '
+                                                                                       '{% '
+                                                                                       'endif '
+                                                                                       '%}oboInOwl:hasRelatedSynonym '
+                                                                                       '{{id}} '
+                                                                                       '"{{s.synonym_text|replace(\'"\', '
+                                                                                       '\'\\\\"\')}}")\n'
+                                                                                       '{% '
+                                                                                       'endfor '
+                                                                                       '%}'}},
+                                             'name': 'related_synonyms'}}})
 
-    id: str = Field(default=..., description="""Canonical CURIE identifier for the term (e.g. \"ICD10CM:A00\").""", json_schema_extra = { "linkml_meta": {'domain_of': ['OntologyTerm'], 'slot_uri': 'dcterms:identifier'} })
-    label: str = Field(default=..., description="""The preferred human-readable label.""", json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
+    id: str = Field(default=..., json_schema_extra = { "linkml_meta": {'domain_of': ['OntologyTerm'], 'slot_uri': 'dcterms:identifier'} })
+    label: str = Field(default=..., json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
          'domain_of': ['OntologyTerm'],
          'slot_uri': 'rdfs:label'} })
-    definition: Optional[str] = Field(default=None, description="""Textual definition (IAO:0000115).""", json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
+    definition: Optional[str] = Field(default=None, json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
          'domain_of': ['OntologyTerm'],
-         'recommended': True,
          'slot_uri': 'obo:IAO_0000115'} })
-    exact_synonyms: Optional[list[str]] = Field(default=None, description="""Exact-match synonyms (oboInOwl:hasExactSynonym).""", json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
+    exact_synonyms: Optional[list[Synonym]] = Field(default=None, json_schema_extra = { "linkml_meta": {'annotations': {'owl.template': {'tag': 'owl.template',
+                                          'value': '{% for s in exact_synonyms %}\n'
+                                                   'AnnotationAssertion({% if '
+                                                   's.synonym_type '
+                                                   '%}Annotation(oboInOwl:hasSynonymType '
+                                                   '{{s.synonym_type.meaning}}) {% '
+                                                   'endif %}oboInOwl:hasExactSynonym '
+                                                   '{{id}} '
+                                                   '"{{s.synonym_text|replace(\'"\', '
+                                                   '\'\\\\"\')}}")\n'
+                                                   '{% endfor %}'}},
          'domain_of': ['OntologyTerm'],
-         'recommended': True,
          'slot_uri': 'oboInOwl:hasExactSynonym'} })
-    related_synonyms: Optional[list[str]] = Field(default=None, description="""Related synonyms (oboInOwl:hasRelatedSynonym).""", json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
+    related_synonyms: Optional[list[Synonym]] = Field(default=None, json_schema_extra = { "linkml_meta": {'annotations': {'owl.template': {'tag': 'owl.template',
+                                          'value': '{% for s in related_synonyms %}\n'
+                                                   'AnnotationAssertion({% if '
+                                                   's.synonym_type '
+                                                   '%}Annotation(oboInOwl:hasSynonymType '
+                                                   '{{s.synonym_type.meaning}}) {% '
+                                                   'endif %}oboInOwl:hasRelatedSynonym '
+                                                   '{{id}} '
+                                                   '"{{s.synonym_text|replace(\'"\', '
+                                                   '\'\\\\"\')}}")\n'
+                                                   '{% endfor %}'}},
          'domain_of': ['OntologyTerm'],
          'slot_uri': 'oboInOwl:hasRelatedSynonym'} })
-    narrow_synonyms: Optional[list[str]] = Field(default=None, description="""Narrower synonyms (oboInOwl:hasNarrowSynonym).""", json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
+    narrow_synonyms: Optional[list[Synonym]] = Field(default=None, json_schema_extra = { "linkml_meta": {'annotations': {'owl.template': {'tag': 'owl.template',
+                                          'value': '{% for s in narrow_synonyms %}\n'
+                                                   'AnnotationAssertion({% if '
+                                                   's.synonym_type '
+                                                   '%}Annotation(oboInOwl:hasSynonymType '
+                                                   '{{s.synonym_type.meaning}}) {% '
+                                                   'endif %}oboInOwl:hasNarrowSynonym '
+                                                   '{{id}} '
+                                                   '"{{s.synonym_text|replace(\'"\', '
+                                                   '\'\\\\"\')}}")\n'
+                                                   '{% endfor %}'}},
          'domain_of': ['OntologyTerm'],
          'slot_uri': 'oboInOwl:hasNarrowSynonym'} })
-    broad_synonyms: Optional[list[str]] = Field(default=None, description="""Broader synonyms (oboInOwl:hasBroadSynonym).""", json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
+    broad_synonyms: Optional[list[Synonym]] = Field(default=None, json_schema_extra = { "linkml_meta": {'annotations': {'owl.template': {'tag': 'owl.template',
+                                          'value': '{% for s in broad_synonyms %}\n'
+                                                   'AnnotationAssertion({% if '
+                                                   's.synonym_type '
+                                                   '%}Annotation(oboInOwl:hasSynonymType '
+                                                   '{{s.synonym_type.meaning}}) {% '
+                                                   'endif %}oboInOwl:hasBroadSynonym '
+                                                   '{{id}} '
+                                                   '"{{s.synonym_text|replace(\'"\', '
+                                                   '\'\\\\"\')}}")\n'
+                                                   '{% endfor %}'}},
          'domain_of': ['OntologyTerm'],
          'slot_uri': 'oboInOwl:hasBroadSynonym'} })
-    close_synonyms: Optional[list[str]] = Field(default=None, description="""Close synonyms (skos:closeMatch). oboInOwl has no dedicated close-synonym property, so skos:closeMatch is used as the nearest equivalent.""", json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
+    close_synonyms: Optional[list[Synonym]] = Field(default=None, json_schema_extra = { "linkml_meta": {'annotations': {'owl.template': {'tag': 'owl.template',
+                                          'value': '{% for s in close_synonyms %}\n'
+                                                   'AnnotationAssertion({% if '
+                                                   's.synonym_type '
+                                                   '%}Annotation(oboInOwl:hasSynonymType '
+                                                   '{{s.synonym_type.meaning}}) {% '
+                                                   'endif %}skos:closeMatch {{id}} '
+                                                   '"{{s.synonym_text|replace(\'"\', '
+                                                   '\'\\\\"\')}}")\n'
+                                                   '{% endfor %}'}},
          'domain_of': ['OntologyTerm'],
          'slot_uri': 'skos:closeMatch'} })
-    parents: Optional[list[str]] = Field(default=None, description="""Direct is-a parents. Required unless is_root is true.""", json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'SubClassOf'}},
+    skos_exact_match: Optional[list[str]] = Field(default=None, json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
+         'domain_of': ['OntologyTerm'],
+         'slot_uri': 'skos:exactMatch'} })
+    parents: Optional[list[str]] = Field(default=None, json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'SubClassOf'}},
          'domain_of': ['OntologyTerm'],
          'slot_uri': 'rdfs:subClassOf'} })
-    is_root: Optional[bool] = Field(default=False, description="""True when this term has no named parents and sits at the top of the hierarchy. Relaxes the parents requirement.""", json_schema_extra = { "linkml_meta": {'domain_of': ['OntologyTerm'], 'ifabsent': 'false'} })
-    deprecated: Optional[bool] = Field(default=False, description="""True when this term is marked owl:deprecated.""", json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
+    deprecated: Optional[bool] = Field(default=None, json_schema_extra = { "linkml_meta": {'annotations': {'owl': {'tag': 'owl', 'value': 'AnnotationAssertion'}},
          'domain_of': ['OntologyTerm'],
-         'ifabsent': 'false',
          'slot_uri': 'owl:deprecated'} })
 
 
 # Model rebuild
 # see https://pydantic-docs.helpmanual.io/usage/models/#rebuilding-a-model
 OntologyDocument.model_rebuild()
+Synonym.model_rebuild()
 OntologyTerm.model_rebuild()

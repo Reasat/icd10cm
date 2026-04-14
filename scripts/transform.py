@@ -40,7 +40,23 @@ OWL_THING = OWL.Thing
 OWL_DEPRECATED_PROP = OWL.deprecated
 
 
-# ── IRI helpers ───────────────────────────────────────────────────────────────
+# ── YAML: quote strings that break plain YAML scalars ─────────────────────────
+
+
+class QuotingDumper(yaml.SafeDumper):
+    pass
+
+
+def _represent_str(dumper: yaml.Dumper, data: str) -> yaml.ScalarNode:
+    if any(c in data for c in ",:{}") or data.strip() != data:
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data, style='"')
+    return dumper.represent_scalar("tag:yaml.org,2002:str", data)
+
+
+QuotingDumper.add_representer(str, _represent_str)
+
+
+# ── IRI helpers ────────────────────────────────────────────────────────────────
 
 def is_icd10cm_iri(iri: str) -> bool:
     return iri.startswith(ICD10CM_IRI_PREFIX)
@@ -113,12 +129,15 @@ def extract_terms(g: Graph) -> list[dict]:
         defn_node = g.value(subj, DEFINITION)
         definition = str(defn_node) if defn_node else None
 
-        # ── Exact synonyms (component OWL has SPARQL fixes applied) ─────────────
-        exact_syns: list[str] = [
-            str(o)
-            for o in g.objects(subj, OBOINOWL.hasExactSynonym)
-            if isinstance(o, Literal)
-        ]
+        # ── Exact synonyms (component OWL has SPARQL fixes applied) ───────────
+        exact_syns: list[dict] = []
+        for o in g.objects(subj, OBOINOWL.hasExactSynonym):
+            if isinstance(o, Literal):
+                t = str(o).strip()
+                if t:
+                    exact_syns.append(
+                        {"synonym_text": t, "synonym_type": "generated_from_label"}
+                    )
 
         # ── Parents ───────────────────────────────────────────────────────────
         parent_iris = [
@@ -128,7 +147,7 @@ def extract_terms(g: Graph) -> list[dict]:
         ]
         parent_curies = [iri_to_curie(p) for p in sorted(parent_iris)]
 
-        # ── Root detection ────────────────────────────────────────────────────
+        # ── Root detection (internal only — not written to YAML) ──────────────
         has_thing_parent = OWL_THING in g.objects(subj, RDFS.subClassOf)
         is_root = has_thing_parent or len(parent_curies) == 0
 
@@ -140,9 +159,7 @@ def extract_terms(g: Graph) -> list[dict]:
             term["definition"] = definition
         if exact_syns:
             term["exact_synonyms"] = exact_syns
-        if is_root:
-            term["is_root"] = True
-        else:
+        if not is_root:
             term["parents"] = parent_curies
 
         terms.append(term)
@@ -165,7 +182,14 @@ def transform(input_path: Path, output_path: Path) -> None:
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as fh:
-        yaml.dump(doc, fh, allow_unicode=True, sort_keys=False, default_flow_style=False)
+        yaml.dump(
+            doc,
+            fh,
+            allow_unicode=True,
+            sort_keys=False,
+            default_flow_style=False,
+            Dumper=QuotingDumper,
+        )
 
     print(f"Written: {output_path}", file=sys.stderr)
 

@@ -51,7 +51,7 @@ All steps below are chained into a single `robot` invocation; each row is a subc
 | **Rename (properties)** | `robot rename --mappings config/property-map.sssom.tsv --allow-missing-entities true --allow-duplicates true` — map to Mondo's preferred property IRIs. `--allow-missing-entities` and `--allow-duplicates` are required because not every property in the mapping file is present in every ICD10CM release. |
 | **Remove by signature (complement)** | `robot remove -T tmp/icd10cm_relevant_signature.txt --select complement --select "classes individuals" --trim false` — drop every class/individual **not** in the relevant signature. Two selectors are needed because a single `remove` cannot simultaneously select "complement of signature" and restrict to classes only. |
 | **Remove individuals** | `robot remove -T tmp/icd10cm_relevant_signature.txt --select individuals` — drop the individuals that remain after the previous step, leaving only **classes** from the relevant set. |
-| **SPARQL updates** | `robot query --update sparql/fix_omimps.ru --update sparql/fix-labels-with-brackets.ru --update sparql/exact_syn_from_label.ru` — exactly these three updates, in this order: normalize OMIM xrefs, fix labels with brackets, add exact synonyms from labels. |
+| **SPARQL updates** | `robot query --update sparql/fix_xref_prefixes.ru --update sparql/fix_omimps.ru --update sparql/fix-labels-with-brackets.ru --update sparql/exact_syn_from_label.ru` — xref prefix normalisation (mondo-source-ingest default), then OMIM xrefs, labels with brackets, exact synonyms from labels. |
 | **Remove extra properties** | `robot remove -T config/properties.txt --select complement --select properties --trim true` — keep only Mondo-approved properties; `--trim true` removes dangling references left after property removal. |
 | **Annotate** | `robot annotate --ontology-iri $(URIBASE)/mondo/sources/icd10cm.owl --version-iri $(URIBASE)/mondo/sources/$(TODAY)/icd10cm.owl` |
 | **Output** | `-o tmp/icd10cm-component.owl` |
@@ -65,7 +65,7 @@ Release **`icd10cm.owl`** (copy of the component file) and **`icd10cm.linkml.yml
 
 ### LinkML YAML (`icd10cm.linkml.yml`)
 
-After the ROBOT component OWL is built (`tmp/icd10cm-component.owl`), `scripts/transform.py` serializes it to **`icd10cm.linkml.yml`** (schema: `linkml/mondo_source_schema.yaml`). Run `just validate` and `just verify` before release. The canonical OWL artefact remains **`icd10cm.owl`** (ROBOT output copied from the component build), not a YAML round-trip.
+After the ROBOT component OWL is built (`tmp/icd10cm-component.owl`), `scripts/transform.py` serializes it to **`icd10cm.linkml.yml`** (schema: `linkml/mondo_source_schema.yaml` v0.4.0: inlined synonyms, no `is_root` in YAML). Run `uv sync`, `just dependencies`, then `just validate` and `just verify` before release. The canonical OWL artefact remains **`icd10cm.owl`** (ROBOT output copied from the component build), not a YAML round-trip. Incidents: [`pipeline_incidents.md`](pipeline_incidents.md).
 
 ### Phase 9 verification (pre-release)
 

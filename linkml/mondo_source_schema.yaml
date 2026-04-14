@@ -1,22 +1,21 @@
 id: https://w3id.org/monarch-initiative/mondo-source-schema
 name: mondo_source_schema
 description: >-
-  Minimal LinkML schema for a Mondo-ready ontology source.
-  Captures only the elements Mondo uses: labels, definitions, synonyms,
-  and hierarchical parentage. Used to validate and export each source as
-  a schema-conformant YAML + OWL artefact.
-version: 0.1.0
+  LinkML schema for ICD-10-CM source for Mondo ingest. Extends mondo-source-ingest
+  v0.4.0 with document-level BioPortal metadata and skos:closeMatch synonyms.
+version: 0.4.0
 
 prefixes:
-  linkml:     https://w3id.org/linkml/
-  mondo_src:  https://w3id.org/monarch-initiative/mondo-source-schema/
-  rdfs:       http://www.w3.org/2000/01/rdf-schema#
-  skos:       http://www.w3.org/2004/02/skos/core#
-  dcterms:    http://purl.org/dc/terms/
-  obo:        http://purl.obolibrary.org/obo/
-  oboInOwl:   http://www.geneontology.org/formats/oboInOwl#
-  owl:        http://www.w3.org/2002/07/owl#
-  ICD10CM:    http://purl.bioontology.org/ontology/ICD10CM/
+  linkml:    https://w3id.org/linkml/
+  mondo_src: https://w3id.org/monarch-initiative/mondo-source-schema/
+  rdfs:      http://www.w3.org/2000/01/rdf-schema#
+  skos:      http://www.w3.org/2004/02/skos/core#
+  dcterms:   http://purl.org/dc/terms/
+  obo:       http://purl.obolibrary.org/obo/
+  oboInOwl:  http://www.geneontology.org/formats/oboInOwl#
+  owl:       http://www.w3.org/2002/07/owl#
+  MONDO:     http://purl.obolibrary.org/obo/mondo#
+  ICD10CM:   http://purl.bioontology.org/ontology/ICD10CM/
 
 imports:
   - linkml:types
@@ -25,13 +24,26 @@ default_prefix: mondo_src
 default_range: string
 
 
-# ── Classes ──────────────────────────────────────────────────────────────────
+enums:
+
+  SynonymTypeEnum:
+    description: Types of synonyms used in Mondo source ingests.
+    permissible_values:
+      omim_included:
+        meaning: MONDO:omim_included
+      generated_from_label:
+        meaning: MONDO:GENERATED_FROM_LABEL
+      generated:
+        meaning: MONDO:GENERATED
+      omim_formerly:
+        meaning: MONDO:omim_formerly
+      abbreviation:
+        meaning: MONDO:ABBREVIATION
+
 
 classes:
 
   OntologyDocument:
-    description: >-
-      Top-level container representing a single ontology source release.
     tree_root: true
     class_uri: owl:Ontology
     slots:
@@ -42,10 +54,13 @@ classes:
       - version_iri
       - terms
 
+  Synonym:
+    description: A synonym value with an optional type annotation.
+    slots:
+      - synonym_text
+      - synonym_type
+
   OntologyTerm:
-    description: >-
-      A single class / concept from the source ontology, containing only
-      the elements Mondo requires for ingest.
     class_uri: owl:Class
     slots:
       - id
@@ -56,137 +71,144 @@ classes:
       - narrow_synonyms
       - broad_synonyms
       - close_synonyms
+      - skos_exact_match
       - parents
-      - is_root
       - deprecated
+    slot_usage:
+      exact_synonyms:
+        annotations:
+          owl.template: |-
+            {% for s in exact_synonyms %}
+            AnnotationAssertion({% if s.synonym_type %}Annotation(oboInOwl:hasSynonymType {{s.synonym_type.meaning}}) {% endif %}oboInOwl:hasExactSynonym {{id}} "{{s.synonym_text|replace('"', '\\"')}}")
+            {% endfor %}
+      related_synonyms:
+        annotations:
+          owl.template: |-
+            {% for s in related_synonyms %}
+            AnnotationAssertion({% if s.synonym_type %}Annotation(oboInOwl:hasSynonymType {{s.synonym_type.meaning}}) {% endif %}oboInOwl:hasRelatedSynonym {{id}} "{{s.synonym_text|replace('"', '\\"')}}")
+            {% endfor %}
+      narrow_synonyms:
+        annotations:
+          owl.template: |-
+            {% for s in narrow_synonyms %}
+            AnnotationAssertion({% if s.synonym_type %}Annotation(oboInOwl:hasSynonymType {{s.synonym_type.meaning}}) {% endif %}oboInOwl:hasNarrowSynonym {{id}} "{{s.synonym_text|replace('"', '\\"')}}")
+            {% endfor %}
+      broad_synonyms:
+        annotations:
+          owl.template: |-
+            {% for s in broad_synonyms %}
+            AnnotationAssertion({% if s.synonym_type %}Annotation(oboInOwl:hasSynonymType {{s.synonym_type.meaning}}) {% endif %}oboInOwl:hasBroadSynonym {{id}} "{{s.synonym_text|replace('"', '\\"')}}")
+            {% endfor %}
+      close_synonyms:
+        annotations:
+          owl.template: |-
+            {% for s in close_synonyms %}
+            AnnotationAssertion({% if s.synonym_type %}Annotation(oboInOwl:hasSynonymType {{s.synonym_type.meaning}}) {% endif %}skos:closeMatch {{id}} "{{s.synonym_text|replace('"', '\\"')}}")
+            {% endfor %}
 
-
-# ── Slots ────────────────────────────────────────────────────────────────────
 
 slots:
 
-  # -- Document-level metadata --
-
   title:
-    description: Human-readable title of the ontology source.
-    slot_uri: dcterms:title
+    slot_uri: rdfs:label
     required: true
 
   version:
-    description: Version string for this release (e.g. "2024ab" or "2025-03-01").
     slot_uri: owl:versionInfo
     required: true
 
   source:
-    description: >-
-      Provenance IRI for the upstream ontology file (oboInOwl:source), e.g. BioPortal submission URL.
     slot_uri: oboInOwl:source
     range: uriorcurie
+    annotations:
+      owl: AnnotationAssertion
 
   ontology_comment:
-    description: Ontology-level rdfs:comment (e.g. UMLS2RDF tool line).
     slot_uri: rdfs:comment
+    annotations:
+      owl: AnnotationAssertion
 
   version_iri:
-    description: Ontology owl:versionIRI for this build (distinct from versionInfo text).
     slot_uri: owl:versionIRI
     range: uriorcurie
+    annotations:
+      owl: AnnotationAssertion
 
   terms:
-    description: All terms included in this source release.
     range: OntologyTerm
     multivalued: true
     inlined_as_list: true
     required: true
 
-  # -- Term identity --
+  synonym_text:
+    required: true
+
+  synonym_type:
+    range: SynonymTypeEnum
 
   id:
-    description: >-
-      Canonical CURIE identifier for the term (e.g. "ICD10CM:A00").
     identifier: true
     slot_uri: dcterms:identifier
     range: uriorcurie
     required: true
 
-  # -- Core annotation properties --
-
   label:
-    description: The preferred human-readable label.
     slot_uri: rdfs:label
     required: true
     annotations:
       owl: AnnotationAssertion
 
   definition:
-    description: Textual definition (IAO:0000115).
     slot_uri: obo:IAO_0000115
-    recommended: true
     annotations:
       owl: AnnotationAssertion
-
-  # -- Synonyms --
 
   exact_synonyms:
-    description: Exact-match synonyms (oboInOwl:hasExactSynonym).
     slot_uri: oboInOwl:hasExactSynonym
     multivalued: true
-    recommended: true
-    annotations:
-      owl: AnnotationAssertion
+    range: Synonym
+    inlined_as_list: true
 
   related_synonyms:
-    description: Related synonyms (oboInOwl:hasRelatedSynonym).
     slot_uri: oboInOwl:hasRelatedSynonym
     multivalued: true
-    annotations:
-      owl: AnnotationAssertion
+    range: Synonym
+    inlined_as_list: true
 
   narrow_synonyms:
-    description: Narrower synonyms (oboInOwl:hasNarrowSynonym).
     slot_uri: oboInOwl:hasNarrowSynonym
     multivalued: true
-    annotations:
-      owl: AnnotationAssertion
+    range: Synonym
+    inlined_as_list: true
 
   broad_synonyms:
-    description: Broader synonyms (oboInOwl:hasBroadSynonym).
     slot_uri: oboInOwl:hasBroadSynonym
     multivalued: true
-    annotations:
-      owl: AnnotationAssertion
+    range: Synonym
+    inlined_as_list: true
 
   close_synonyms:
-    description: >-
-      Close synonyms (skos:closeMatch). oboInOwl has no dedicated close-synonym
-      property, so skos:closeMatch is used as the nearest equivalent.
     slot_uri: skos:closeMatch
     multivalued: true
+    range: Synonym
+    inlined_as_list: true
+
+  skos_exact_match:
+    slot_uri: skos:exactMatch
+    multivalued: true
+    range: uriorcurie
     annotations:
       owl: AnnotationAssertion
 
-  # -- Hierarchy --
-
   parents:
-    description: >-
-      Direct is-a parents. Required unless is_root is true.
     slot_uri: rdfs:subClassOf
     range: OntologyTerm
     multivalued: true
     annotations:
       owl: SubClassOf
 
-  is_root:
-    description: >-
-      True when this term has no named parents and sits at the top of
-      the hierarchy. Relaxes the parents requirement.
-    range: boolean
-    ifabsent: "false"
-
   deprecated:
-    description: True when this term is marked owl:deprecated.
     slot_uri: owl:deprecated
     range: boolean
-    ifabsent: "false"
     annotations:
       owl: AnnotationAssertion

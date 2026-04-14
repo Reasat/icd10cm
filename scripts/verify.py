@@ -10,7 +10,7 @@ Required checks:
   - Check every parents entry resolves to a known term ID
   - Print summary (term count, unique IDs, broken parent refs); exit 0 on PASS, 1 on FAIL
 
-Optional --raw-json: acquire output; cross-checks (API traversal sources — not used for ICD10CM OWL).
+Optional --raw-json: acquire output; cross-checks for API sources (unused here).
 """
 
 from __future__ import annotations
@@ -96,28 +96,34 @@ def main() -> None:
     related_synonym_items = 0
     narrow_synonym_items = 0
     broad_synonym_items = 0
+    close_synonym_items = 0
     root_terms = 0
     deprecated_terms = 0
 
     def _strip_nonempty(val: object) -> bool:
         return val is not None and bool(str(val).strip())
 
+    def _count_synonym_list(items: list | None) -> int:
+        """Count inlined Synonym objects or legacy plain strings."""
+        n = 0
+        for x in items or []:
+            if isinstance(x, dict):
+                if _strip_nonempty(x.get("synonym_text")):
+                    n += 1
+            elif _strip_nonempty(x):
+                n += 1
+        return n
+
     for t in terms:
         if _strip_nonempty(t.get("definition")):
             terms_with_definition += 1
-        exact_synonym_items += sum(
-            1 for x in (t.get("exact_synonyms") or []) if _strip_nonempty(x)
-        )
-        related_synonym_items += sum(
-            1 for x in (t.get("related_synonyms") or []) if _strip_nonempty(x)
-        )
-        narrow_synonym_items += sum(
-            1 for x in (t.get("narrow_synonyms") or []) if _strip_nonempty(x)
-        )
-        broad_synonym_items += sum(
-            1 for x in (t.get("broad_synonyms") or []) if _strip_nonempty(x)
-        )
-        if t.get("is_root") is True:
+        exact_synonym_items += _count_synonym_list(t.get("exact_synonyms"))
+        related_synonym_items += _count_synonym_list(t.get("related_synonyms"))
+        narrow_synonym_items += _count_synonym_list(t.get("narrow_synonyms"))
+        broad_synonym_items += _count_synonym_list(t.get("broad_synonyms"))
+        close_synonym_items += _count_synonym_list(t.get("close_synonyms"))
+        parents = t.get("parents") or []
+        if not parents:
             root_terms += 1
         if t.get("deprecated") is True:
             deprecated_terms += 1
@@ -160,7 +166,8 @@ def main() -> None:
     print(f"related_synonym_items: {related_synonym_items}")
     print(f"narrow_synonym_items: {narrow_synonym_items}")
     print(f"broad_synonym_items: {broad_synonym_items}")
-    print(f"root_terms (is_root): {root_terms}")
+    print(f"close_synonym_items: {close_synonym_items}")
+    print(f"root_terms (no parents): {root_terms}")
     print(f"deprecated_terms: {deprecated_terms}")
 
     if errors:

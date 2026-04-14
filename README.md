@@ -7,6 +7,7 @@ Preprocessed ICD-10-CM (US Clinical Modification) from BioPortal for Mondo sourc
 1. Get an API key from [BioPortal](https://bioportal.bioontology.org/account).
 2. Copy `env/.env.example` → `env/.env` and set `BIOPORTAL_API_KEY`.
 3. Install dependencies: `uv sync`
+4. Align LinkML with the mondo-source-ingest pin: `just dependencies` (after `uv sync`; main-branch `linkml` / `linkml-runtime`, `linkml-owl` 0.5.0)
 
 ## Run
 
@@ -25,7 +26,7 @@ just iterate       # transform → validate → verify → publish-owl (skips ac
 | `icd10cm.linkml.yml` | Primary artefact for Mondo ingest (LinkML) |
 | `icd10cm.owl` | Canonical OWL — ROBOT component output (not YAML round-trip) |
 
-Optional: `just data2owl` emits linkml-OWL from YAML for experiments only; see `docs/report.md`.
+Optional: `just data2owl` emits linkml-OWL from YAML for experiments only (`icd10cm_from_linkml.owl`); see `docs/pipeline_incidents.md`.
 
 ## Docs
 
@@ -33,7 +34,7 @@ Optional: `just data2owl` emits linkml-OWL from YAML for experiments only; see `
 |-----|----------|
 | [`docs/plan.md`](docs/plan.md) | Pipeline architecture, field mappings, ID scheme |
 | [`docs/release_notes.md`](docs/release_notes.md) | Ontology stats and verification results per release |
-| [`docs/report.md`](docs/report.md) | Deviations and tool limitations |
+| [`docs/pipeline_incidents.md`](docs/pipeline_incidents.md) | Pipeline incidents: errors, deviations, resolutions |
 
 ## CI
 

@@ -24,6 +24,13 @@ PYTHON                 := "uv run python"
 install:
     uv sync
 
+# Pin linkml-owl + main-branch linkml/linkml-runtime (mondo-source-ingest comma-in-synonym workaround).
+# Run after `uv sync` in CI before `just build` or `just test`.
+dependencies:
+    uv pip install linkml-owl==0.5.0 \
+        "linkml @ git+https://github.com/linkml/linkml.git@main#subdirectory=packages/linkml" \
+        "linkml-runtime @ git+https://github.com/linkml/linkml.git@main#subdirectory=packages/linkml_runtime"
+
 # ── Resolve BioPortal submission ──────────────────────────────────────────────
 
 # Resolve ICD10CM submission from BioPortal → .bioportal.env (no download)
@@ -81,6 +88,7 @@ component: signature
         remove -T {{ SIG_TXT }} --select complement --select "classes individuals" --trim false \
         remove -T {{ SIG_TXT }} --select individuals \
         query \
+            --update sparql/fix_xref_prefixes.ru \
             --update sparql/fix_omimps.ru \
             --update sparql/fix-labels-with-brackets.ru \
             --update sparql/exact_syn_from_label.ru \
@@ -126,11 +134,11 @@ publish-owl:
     cp {{ COMPONENT_OWL }} {{ OWL_OUT }}
     @echo "Published {{ OWL_OUT }} (identical to {{ COMPONENT_OWL }})"
 
-# Optional: regenerate OWL from YAML via LinkML (lossy vs component; for experiments only).
+# Optional: regenerate OWL from YAML via linkml-owl (lossy vs component; for experiments only).
 data2owl:
-    uv run linkml-data2owl \
+    uv run python -m linkml_owl.dumpers.owl_dumper \
         --schema {{ SCHEMA }} \
-        -o {{ OWL_OUT }} \
+        -o icd10cm_from_linkml.owl \
         {{ YAML_OUT }}
 
 # ── Composite targets ─────────────────────────────────────────────────────────

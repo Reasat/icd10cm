@@ -93,6 +93,8 @@ class TestStructuralIntegrity(unittest.TestCase):
                 "individuals",
                 "query",
                 "--update",
+                str(SPARQL_DIR / "fix_xref_prefixes.ru"),
+                "--update",
                 str(SPARQL_DIR / "fix_omimps.ru"),
                 "--update",
                 str(SPARQL_DIR / "fix-labels-with-brackets.ru"),
